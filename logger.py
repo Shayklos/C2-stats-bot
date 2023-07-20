@@ -1,5 +1,4 @@
 import time
-from functools import wraps
 from datetime import datetime
 import pytz
 
@@ -9,11 +8,9 @@ tz = pytz.timezone('UTC')
 
 
 def log_time(func):
-
-    @wraps(func)  # improves debugging
-    def wrapper(*arg):
-        start = time.perf_counter()  # needs python3.3 or higher
-        result = func(*arg)
+    def wrapper(*arg, **kwargs):
+        start = time.perf_counter()  
+        result = func(*arg, **kwargs)
         end = time.perf_counter()
         fs = ' {} took {} seconds.'
 
@@ -41,5 +38,5 @@ def moment(filename=False) -> str:
 def log(string):
     log_output = moment() + ' ' + string + '\n'
     print(log_output, end='')
-    with open('files/log.txt', 'a', newline='\n') as file:
+    with open('files/log.txt', 'a', newline='\n', encoding="utf-8") as file:
             file.write(log_output)
