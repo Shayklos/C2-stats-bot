@@ -41,15 +41,16 @@ def add_new_rounds(db):
                 empty = True
                 break
 
-            query1 = "insert into Matches values (?, ?, ?, ?)"
-            query2 = "insert into Rounds values (?,?,?,?,?,?,?,?,?,?)"
+            query1 = "insert into Matches values (?, ?, ?, ?, ?)"
+            query2 = "insert into Rounds values (?,?,?,?,?,?,?,?,?,?,?)"
             parameters1, parameters2 = [], []
             for round in data:
                 round_param1 = (
                     round.get("roundId"), 
                     datetime.strptime(round.get('start').split('.')[0], timeformat), #ignoring ms
                     round.get("ruleset"), 
-                    round.get("speedLimit")
+                    round.get("speedLimit"),
+                    round.get("isOfficial")
                 )
                 parameters1.append(round_param1)
                 
@@ -65,6 +66,7 @@ def add_new_rounds(db):
                     player.get("maxCombo"),
                     player.get("playDuration"),
                     player.get("team"),
+                    player.get("cheeseRows"),
                     )
                     parameters2.append(params2)
                 
@@ -98,7 +100,7 @@ def delete_old_data(db, days=30):
     db.execute("delete from Matches where roundId < (?)", (id,))
     db.execute("delete from Rounds where roundId < (?)", (id,))
     log(f"Deleted {res.fetchone()[0]} matches.")
-    db.commit()
+    # db.commit()
 
 
 @log_time
@@ -213,15 +215,15 @@ def add_profile_data(db, userId, add_to_netscores = False, commit = False):
             data = json.load(URL)
     except urllib.error.HTTPError:
         # website is down at the moment
-        log(f"couldn't add {userId}")
-        pass
+        log(f"Couldn't add {userId}.")
+        return
     
     if data.get("stats") is None:
         query = "update Users set name = ? where userId = ?"
         params = (data.get("name"), userId)
     else:
-        res = db.execute("select peakRank, score from Users where userId = ?", (userId,))
-        old_rank_data = res.fetchone()
+        res = db.execute("select peakRank, peakRankScore from Users where userId = ?", (userId,))
+        old_rank_data = res.fetchone() #320.0, 8
         stats = data.get("stats")
         query = """update Users 
                     set name = ?,
@@ -259,8 +261,9 @@ def add_profile_data(db, userId, add_to_netscores = False, commit = False):
 
     return data.get("gravatarHash")
 
+# add_profile_data(db, 5840)
 
-# @log_time
+@log_time
 def add_recent_profile_data(db, days=7, add_to_netscores=False):
     """
     Adds to the db data profiles of all players that have played in 'days' days
@@ -391,10 +394,14 @@ def time_based_stats(db, userId = None, username = None, days = 7):
         userId = find_userId(db, username)
         if userId is None:
             return None
-    #TODO change time period from lenght of db to 7 days
 
     date_now = datetime.now(tz = timezone('UTC'))
     date = date_now-timedelta(days=days)
+
+    res = db.execute("select max(maxCombo), max(blocks/playDuration)*60 from Rounds inner join Matches on Rounds.roundId = Matches.roundId where playDuration > 10.5 and userId = ? and start > ?",
+                     (userId,date))
+    bestCombo, bestBPM = res.fetchone()
+
     res = db.execute("""select 
                 60*sum(linesSent)/sum(playDuration) as avgSPM, 
                 100*cast(sum(linesBlocked) as float)/sum(linesGot) as blockedpercent,
@@ -419,19 +426,22 @@ def time_based_stats(db, userId = None, username = None, days = 7):
 	Played as (
                                 select count(Rounds.roundId) as played
                             from roundsWhereMoreThanOnePersonPlayed inner join Rounds on Rounds.roundId = r where Rounds.userId = ?)
-                        select 100*cast(wins as float)/played as winrate from wins join played
+                        select 100*cast(wins as float)/played, played as winrate from wins join played
 						
                 """, (date, date, userId, userId))
-    winrate = res.fetchone()[0]
+    (winrate, played) = res.fetchone()
     return{ 
         "avgBPM" : avgBPM, 
         "avgCombo" : avgCombo, 
         "avgSPM" : avgSPM, 
         "blockedpercent" : blockedpercent, 
         "mins" : mins, 
-        "winrate" : winrate
+        "winrate" : winrate,
+        "played" : played,
+        "bestCombo" : bestCombo,
+        "bestBPM" : bestBPM,
     }
-print(time_based_stats(db, 5840))
+# print(time_based_stats(db, 5840))
 
 def weekly_best(db, days = 7):
     date_now = datetime.now(tz = timezone('UTC'))
@@ -459,50 +469,54 @@ def weekly_best(db, days = 7):
     return (top5SPM, top5Cheese)
 
 
-def getNetscore(db, userId = None, username = None, aproximation = True, commit = False):
+def getNetscore(db, userId = None, username = None):
+    """
+    DOES NOT return a Netscore. Returns the oldest rank score stored of a player, and the days this data has
+    """
     if not (userId or username):
         return None
     if username and not userId:
         userId = find_userId(db, username)
         if userId is None:
             return None
+        
     scores = db.execute("select day1, day2, day3, day4, day5, day6, day7 from Netscores where userId = ?", (userId, )).fetchone()
     if scores is None:
-        return 0
+        return 0, 0
     
     i = -1
     while not (oldest := scores[i]):
         i-=1
 
-    if aproximation:
-        print(scores, oldest)
-        return scores[0]-oldest, -i
-    
-    add_profile_data(db, userId = userId, commit=commit)
-    current_score = db.execute("select score from Users where userId = ?", (userId, )).fetchone()[0]
-    return current_score-oldest, i
+    return oldest, 8+i
+
 
 
 def getNetscores(db, days = 7, aproximation = True):
-    date_now = datetime.now(tz = timezone('UTC'))
-    ids = db.execute(
-        """select distinct userId from Rounds 
+    """
+    Intended to be the list of netscores to send to /netscores in bot.py
+    """
+
+    return db.execute(
+        f"""with elegibleUsers as (select distinct userId as u from Rounds 
         inner join Matches on Matches.roundId = Rounds.roundId 
-        where start > ? and userId is not null order by userId asc""", 
-        (date_now-timedelta(days=days),)).fetchall()
+        where start > ?)
+        select Users.userId, name, day1-day{days} as net from Netscores inner join Users on Netscores.userId = Users.userId inner join elegibleUsers on u=Users.userId where day{days} is not null order by net desc
+        """, 
+        (datetime.now(tz = timezone('UTC'))-timedelta(days=days),)).fetchall()
     
-    for id in ids:
-        print(id)
-        scores = db.execute("select day1, day2, day3, day4, day5, day6, day7 from Netscores where userId = ?", id).fetchone()
-        if scores is None:
-            pass
-        
-        i = -1
-        while not (oldest := scores[i]):
-            break
-        print(oldest)
+
 
     
+
+def getCombos(db, days = 7, requiredMatches = 15):
+    combos = db.execute(f"""select Rounds.userId, name, cast(sum(Rounds.maxCombo) as float)/count(Matches.roundId) as avgCombo, count(Matches.roundId) as c
+                from Matches inner join Rounds on Matches.roundId = Rounds.roundId inner join users on users.userId = rounds.userId where ruleset = 0 and start > ? group by Rounds.userId having c>{requiredMatches} order by avgCombo desc """,
+                (datetime.now(tz = timezone('UTC'))-timedelta(days=days),)).fetchall()
+    
+    return [(combo[0], combo[1], f"**{combo[2]:.2f}** in {combo[3]} matches" ) for combo in combos ]
+
+
 
 
 
@@ -519,12 +533,10 @@ def getPlayersOnline(db):
 
 def fuzzysearch(db, username: str):
     users = db.execute("select userId, name from Users where name is not ''").fetchall()
-    start = time.perf_counter() 
     ratios = sorted([(fuzz.ratio(username, user[1]), user[0], user[1]) for user in users], reverse=True)
-    end = time.perf_counter()
-    print(end-start)
 
     return ratios[0]
+
 
 
 def activePlayers(db, days = 7):
@@ -538,6 +550,158 @@ def activePlayers(db, days = 7):
     return res.fetchall()
     
 
+
+def update_ranks(db, old_round, new_round, commit = False):
+
+    if old_round>new_round:
+        log("0 places changed in the leaderboard")
+        return
+    res = db.execute("""select userId, rank from Users inner join
+(select distinct userid as u from rounds inner join Matches on Matches.roundId = Rounds.roundId and u
+                     where ruleset = 0 and isOfficial and speedLimit <> 80 and Rounds.roundid between ? and ?)
+on userId = u
+""", (old_round, new_round)).fetchall()
+    
+    if not res:
+        log("0 places changed in the leaderboard")
+        return
+    #Creating the changes array, that speciefies exactly how are ranks swapped
+    #example changes = [(39, 40), (18, 18), (113, 138), (11793, 11801)]
+    #means rank 39 goes to rank 40, rank 18 stays the same, rank 113 goes to rank 138... 
+    changes = []
+    for id, rank in res:
+        url = BASE_USER_URL+str(id)
+        try:
+            with urllib.request.urlopen(url) as URL:
+                data = json.load(URL)
+        except urllib.error.HTTPError:
+            # website is down at the moment
+            log(f"Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?")
+            return
+
+        if data.get("stats") is None:
+            query = "update Users set name = ? where userId = ?"
+            params = (data.get("name"), id)
+            log(f"Couldn't add {id . old_round: {old_round}}. Weird rank")
+            continue
+        else:
+            res = db.execute("select peakRank, peakRankScore from Users where userId = ?", (id,))
+            old_rank_data = res.fetchone() #320.0, 8
+            print(old_rank_data)
+            stats = data.get("stats")
+            query = """update Users 
+                        set name = ?,
+                            
+                            score = ?,
+                            maxCombo = ?,
+                            playedRounds = ?,
+                            wins = ?,
+                            maxBPM = ?,
+                            avgBPM = ?,
+                            playedMin = ?
+            """
+            params = [stats.get("name"),
+                    # stats.get("rank"),
+                    stats.get("score"),
+                    stats.get("maxCombo"),
+                    stats.get("playedRounds"),
+                    stats.get("wins"),
+                    stats.get("maxroundBpm"),
+                    stats.get("avgroundBpm"),
+                    stats.get("playedmin")]
+            
+            query += ", peakRank = ?, peakRankScore = ? where userId = ?"
+            if old_rank_data[0] is None:
+                params += [stats.get("rank"), stats.get("score"), id]
+            else:
+                print(stats.get("rank"), stats.get("score"))
+                params += [min(stats.get("rank"), old_rank_data[0]), max(stats.get("score"), old_rank_data[1]), id]    
+        db.execute(query,params)
+        log(f"Added {params[0]}")
+        changes.append((rank, stats.get("rank")))
+
+    #Select range of users to change (for performance, works with the whole leaderboard)
+    MIN = min([min(a, b) for a, b in changes])
+    MAX = max([max(a, b) for a, b in changes])
+
+    players = db.execute("select userId, rank from Users where rank between ? and ? order by rank",
+                     (MIN, MAX)).fetchall()
+    offset = players[0][1] # = MIN
+    result = [None]*len(players)
+    for change in sorted(changes, reverse=True):
+        result[change[1]-offset] = (change[1] ,players[change[0]-offset][0])
+        del players[change[0]-offset]
+    for i in range(len(result)):
+        if not result[i]:
+            result[i] = (i+offset,players[0][0])
+            del players[0]
+
+    #finally, update new ranks
+    for rank, id in result:
+        db.execute("update Users set rank = ? where userId = ?", (rank,id))
+
+    log(f"{len(changes)} places changed in the leaderboard")
+    if commit:
+        db.commit()
+
+
+def getRankings(db, start = 1, end = 20, fast = True):
+    if start > 0:
+        if fast:
+            res = db.execute("select userId, name, score from Users where rank between ? and ? order by rank asc", (start, end)).fetchall()
+            return [(a[0], a[1], str(round(a[2],1))) for a in res]
+
+        else:
+            res = db.execute("select userId, name from Users where rank between ? and ? order by rank asc", (start, end)).fetchall()
+            leaderboard = []
+            for userId, name in res:
+                url = BASE_USER_URL+str(userId)
+                try:
+                    with urllib.request.urlopen(url) as URL:
+                        data = json.load(URL)
+                except urllib.error.HTTPError:
+                    score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
+                    log(f"Couldn't display {userId} in leaderboard.")
+                    leaderboard.append((userId, name, f"~{score:.2f}"))
+                leaderboard.append((userId, name, f"{data.get('stats').get('score'):.1f}"))
+            return leaderboard
+    else: #really don't care enough sorry for these next lines of code
+        if fast:
+            maxrank = db.execute("select max(rank) from Users").fetchone()[0]
+            res = db.execute("select userId, name, score from Users where rank between ? and ? order by rank desc", ((maxrank-19) + 20*(start+1), maxrank + 20*(start+1))).fetchall()
+            return [(a[0], a[1], str(round(a[2],1))) for a in res]
+        else: 
+            res = db.execute("select userId, name from Users where rank between ? and ? order by rank desc", ((maxrank-19) + 20*(start+1), maxrank + 20*(start+1))).fetchall()
+            leaderboard = []
+            for userId, name in res:
+                url = BASE_USER_URL+str(userId)
+                try:
+                    with urllib.request.urlopen(url) as URL:
+                        data = json.load(URL)
+                except urllib.error.HTTPError:
+                    score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
+                    log(f"Couldn't display {userId} in leaderboard.")
+                    leaderboard.append((userId, name, f"~{score:.2f}"))
+                leaderboard.append((userId, name, f"{data.get('stats').get('score'):.1f}"))
+            return leaderboard
+
+
+
+def getSent(db, days = 7):
+    date_now = datetime.now(tz = timezone('UTC'))
+    res = db.execute(
+        """select Users.userId, name, sum(Rounds.linesSent) as Sent from Rounds 
+        inner join Users on Users.userId = Rounds.userId 
+        inner join Matches on Matches.roundId = Rounds.roundId 
+        where start > ? and Users.userId is not null group by Users.userId having Sent > 0 order by Sent desc""", 
+        (date_now-timedelta(days=days),))
+    return res.fetchall()
+    
+
+# print(getSent(db))
+
+# print(getRankings(db, -2))
+
 # print(getNetscores(db))
 # print(fuzzysearch(db, 'chay'))
 # print(fuzz.ratio("z2sam", 'z2sam'))
@@ -548,3 +712,4 @@ def activePlayers(db, days = 7):
 # print(player_stats(db, "[DEV] Simon"))
 # print(time_based_stats(db, username="Shay"))
 # print(weeklyBest(db))
+
