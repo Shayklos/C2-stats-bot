@@ -12,15 +12,8 @@ def log_time(func):
         start = time.perf_counter()  
         result = func(*arg, **kwargs)
         end = time.perf_counter()
-        fs = ' {} took {} seconds.'
 
-        #Get time now
-        datetime_Spain = datetime.now(tz)
-        moment = datetime_Spain.strftime("[%Y-%m-%d] [%H:%M:%S]")
-        log_output = moment + fs.format(func.__name__, (end - start)) + '\n'
-        print(log_output, end='')
-        with open('files/log.txt', 'a', newline='\n') as file:
-              file.write(log_output)      
+        log(f'{func.__name__} took {end - start} seconds.', 'files/log_time.txt')  
         return result
     return wrapper
 
@@ -35,8 +28,9 @@ def moment(filename=False) -> str:
     return moment
 
 
-def log(string):
+def log(string, file = 'files/log_general.txt', consoleLog = True):
     log_output = moment() + ' ' + string + '\n'
-    print(log_output, end='')
-    with open('files/log.txt', 'a', newline='\n', encoding="utf-8") as file:
+    if consoleLog:
+        print(log_output, end='')
+    with open(file, 'a', newline='\n', encoding="utf-8") as file:
             file.write(log_output)
