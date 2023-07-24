@@ -1,15 +1,15 @@
-import sqlite3
-import urllib.request, json
+import sqlite3, urllib.request, json
 from constants import * 
 from datetime import datetime,timedelta
 from pytz import timezone
 from logger import *
 from concurrent.futures import ThreadPoolExecutor
 from thefuzz import fuzz
+from time import sleep
+from methods import *
 
-#TODO check if any queries break when userId or similar is null
 
-db = sqlite3.connect(r"files\cultris.db")
+    
 
 def oldest_round(db):
     res = db.execute("select min(roundId) from Matches")
@@ -100,7 +100,7 @@ def delete_old_data(db, days=30):
     db.execute("delete from Matches where roundId < (?)", (id,))
     db.execute("delete from Rounds where roundId < (?)", (id,))
     log(f"Deleted {res.fetchone()[0]} matches.")
-    # db.commit()
+    db.commit()
 
 
 @log_time
@@ -215,7 +215,7 @@ def add_profile_data(db, userId, add_to_netscores = False, commit = False):
             data = json.load(URL)
     except urllib.error.HTTPError:
         # website is down at the moment
-        log(f"Couldn't add {userId}.")
+        log(f"in add_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
         return
     
     if data.get("stats") is None:
@@ -264,7 +264,7 @@ def add_profile_data(db, userId, add_to_netscores = False, commit = False):
 # add_profile_data(db, 5840)
 
 @log_time
-def add_recent_profile_data(db, days=7, add_to_netscores=False):
+def add_recent_profile_data(db, days=7, add_to_netscores=False, commit = False):
     """
     Adds to the db data profiles of all players that have played in 'days' days
     """
@@ -276,7 +276,7 @@ def add_recent_profile_data(db, days=7, add_to_netscores=False):
     # with ThreadPoolExecutor(max_workers=1) as executor:
     #     futures = [executor.submit(function, x) for x in range(10)]
     while id := res.fetchone():
-        add_profile_data(db, id[0], add_to_netscores=add_to_netscores, commit=False)
+        add_profile_data(db, id[0], add_to_netscores=add_to_netscores, commit=commit)
     
 
 def add_netscore(db, userId, score):
@@ -405,11 +405,13 @@ def time_based_stats(db, userId = None, username = None, days = 7):
     res = db.execute("""select 
                 60*sum(linesSent)/sum(playDuration) as avgSPM, 
                 100*cast(sum(linesBlocked) as float)/sum(linesGot) as blockedpercent,
-                cast(sum(maxCombo) as float)/count(Matches.roundId) as avgCombo
+                cast(sum(maxCombo) as float)/count(Matches.roundId) as avgCombo,
+                100*cast((sum(linesSent)+sum(linesBlocked)) as float) / sum(blocks) as outputperpiece,
+				60*cast((sum(linesSent)+sum(linesBlocked)) as float) / sum(playDuration) as outputperminute
                 from Matches inner join (select * from rounds where userId = ?) as s on Matches.roundId = s.roundId where ruleset = 0 and start > ?
                 
                 """, (userId,date))
-    (avgSPM, blockedpercent, avgCombo) = res.fetchone()
+    (avgSPM, blockedpercent, avgCombo, outputperpiece, outputperminute) = res.fetchone()
     res = db.execute("""select 
                     60*sum(blocks)/sum(playDuration) as avgBPM, 
                     sum(playDuration)/60 as mins
@@ -435,6 +437,8 @@ def time_based_stats(db, userId = None, username = None, days = 7):
         "avgCombo" : avgCombo, 
         "avgSPM" : avgSPM, 
         "blockedpercent" : blockedpercent, 
+        "outputperpiece" :  outputperpiece, 
+        "outputperminute" : outputperminute,
         "mins" : mins, 
         "winrate" : winrate,
         "played" : played,
@@ -453,16 +457,9 @@ def weekly_best(db, days = 7):
     top5SPM = res.fetchall()
     
     res = db.execute("""
-        with top5Cheese as (
-            with roundIdWithWinner as (
-                        select distinct(roundId) as X, userId, playDuration, blocks, maxCombo from Rounds where blocks > 8 and maxCombo>5 GROUP by roundId), 
-                roundsWhereMoreThanOnePersonPlayed as (
-                        select r from (select roundId as r, count(roundId) as c from rounds group by roundId) where c>1)
-                        
-            select userId, playDuration from roundIdWithWinner inner join roundsWhereMoreThanOnePersonPlayed on X = r inner join Matches on Matches.roundId = r where ruleset = 1 and start > ? order by playDuration
-            limit 5)
-            select name, playDuration from top5Cheese inner join Users on Users.userId = top5Cheese.userId
-                                """, (date_now-timedelta(days=days),) )
+        select name, playDuration from Rounds join Matches on Rounds.roundId = Matches.roundId join Users on users.userId = Rounds.userId 
+        where blocks>8 and rounds.maxCombo> 2 and ruleset = 1 and start > ? and not cheeseRows order by playDuration asc limit 5                                
+                     """, (date_now-timedelta(days=days),) )
     
     top5Cheese = res.fetchall()
 
@@ -531,9 +528,9 @@ def getPlayersOnline(db):
     return [r[i][0] for i in range(len(r))]
 
 
-def fuzzysearch(db, username: str):
+def fuzzysearch(db, username: str) -> tuple:
     users = db.execute("select userId, name from Users where name is not ''").fetchall()
-    ratios = sorted([(fuzz.ratio(username, user[1]), user[0], user[1]) for user in users], reverse=True)
+    ratios = sorted([(fuzz.ratio(username.lower(), user[1].lower()), user[0], user[1]) for user in users], reverse=True)
 
     return ratios[0]
 
@@ -550,7 +547,7 @@ def activePlayers(db, days = 7):
     return res.fetchall()
     
 
-
+@log_time
 def update_ranks(db, old_round, new_round, commit = False):
 
     if old_round>new_round:
@@ -576,7 +573,7 @@ on userId = u
                 data = json.load(URL)
         except urllib.error.HTTPError:
             # website is down at the moment
-            log(f"Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?")
+            log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
             return
 
         if data.get("stats") is None:
@@ -587,7 +584,7 @@ on userId = u
         else:
             res = db.execute("select peakRank, peakRankScore from Users where userId = ?", (id,))
             old_rank_data = res.fetchone() #320.0, 8
-            print(old_rank_data)
+            # print(old_rank_data)
             stats = data.get("stats")
             query = """update Users 
                         set name = ?,
@@ -614,9 +611,11 @@ on userId = u
             if old_rank_data[0] is None:
                 params += [stats.get("rank"), stats.get("score"), id]
             else:
-                print(stats.get("rank"), stats.get("score"))
+                # print(stats.get("rank"), stats.get("score"))
                 params += [min(stats.get("rank"), old_rank_data[0]), max(stats.get("score"), old_rank_data[1]), id]    
         db.execute(query,params)
+        db.commit()
+        sleep(0.1) #releases database lock for a moment
         log(f"Added {params[0]}")
         changes.append((rank, stats.get("rank")))
 
@@ -661,7 +660,7 @@ def getRankings(db, start = 1, end = 20, fast = True):
                         data = json.load(URL)
                 except urllib.error.HTTPError:
                     score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
-                    log(f"Couldn't display {userId} in leaderboard.")
+                    log(f"In getRankings: Couldn't display {userId} in leaderboard.", file = 'files/log_error.txt')
                     leaderboard.append((userId, name, f"~{score:.2f}"))
                 leaderboard.append((userId, name, f"{data.get('stats').get('score'):.1f}"))
             return leaderboard
@@ -680,7 +679,7 @@ def getRankings(db, start = 1, end = 20, fast = True):
                         data = json.load(URL)
                 except urllib.error.HTTPError:
                     score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
-                    log(f"Couldn't display {userId} in leaderboard.")
+                    log(f"Couldn't display {userId} in leaderboard.", "files/log_error.txt")
                     leaderboard.append((userId, name, f"~{score:.2f}"))
                 leaderboard.append((userId, name, f"{data.get('stats').get('score'):.1f}"))
             return leaderboard
@@ -689,15 +688,59 @@ def getRankings(db, start = 1, end = 20, fast = True):
 
 def getSent(db, days = 7):
     date_now = datetime.now(tz = timezone('UTC'))
-    res = db.execute(
+    sent = db.execute(
         """select Users.userId, name, sum(Rounds.linesSent) as Sent from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null group by Users.userId having Sent > 0 order by Sent desc""", 
-        (date_now-timedelta(days=days),))
-    return res.fetchall()
+        (date_now-timedelta(days=days),)).fetchall()
     
+    return [(combo[0], combo[1], f"{thousandsSeparator(combo[2])}") for combo in sent ]
 
+def getavgSPM(db, days = 7, requiredMatches = 40):
+    date_now = datetime.now(tz = timezone('UTC'))
+    spm = db.execute(
+        """select Users.userId, name, round(60*cast(sum(Rounds.linesSent) as float)/sum(playDuration),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
+        inner join Users on Users.userId = Rounds.userId 
+        inner join Matches on Matches.roundId = Rounds.roundId 
+        where start > ? and Users.userId is not null and ruleset = 0 group by Users.userId having avgSPM > 0 and c> ? order by avgSPM desc""", 
+        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+
+
+    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm ]
+
+
+
+def getavgBPM(db, days = 7, requiredMatches = 40):
+    date_now = datetime.now(tz = timezone('UTC'))
+    spm = db.execute(
+        """select Users.userId, name, round(60*cast(sum(Rounds.blocks) as float)/sum(playDuration),1) as avgBPM, count(Rounds.roundId) as c from Rounds 
+        inner join Users on Users.userId = Rounds.userId 
+        inner join Matches on Matches.roundId = Rounds.roundId 
+        where start > ? and Users.userId is not null group by Users.userId having avgBPM > 0 and c> ? order by avgBPM desc""", 
+        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+
+
+    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm ]
+
+
+def getBlockedPercent(db, days = 7, requiredMatches = 40):
+    date_now = datetime.now(tz = timezone('UTC'))
+    spm = db.execute(
+        """select Users.userId, name, round(100*cast(sum(Rounds.linesBlocked) as float)/sum(Rounds.linesGot),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
+        inner join Users on Users.userId = Rounds.userId 
+        inner join Matches on Matches.roundId = Rounds.roundId 
+        where start > ? and Users.userId is not null and ruleset = 0 group by Users.userId having avgSPM > 0 and c> ? order by avgSPM desc""", 
+        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+
+
+    return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm ]
+
+
+if __name__ == "__main__":
+    db = sqlite3.connect(r"files\cultris.db")
+    # print(getBlockedPercent(db)) 
+    
 # print(getSent(db))
 
 # print(getRankings(db, -2))
@@ -707,8 +750,8 @@ def getSent(db, days = 7):
 # print(fuzz.ratio("z2sam", 'z2sam'))
 
 # add_profile_data(db, 14331, add_to_netscores=False, commit=True)
-# add_recent_profile_data(db, add_to_netscores=True)
-# db.commit()
+    # add_recent_profile_data(db, add_to_netscores=True)
+    # db.commit()
 # print(player_stats(db, "[DEV] Simon"))
 # print(time_based_stats(db, username="Shay"))
 # print(weeklyBest(db))
