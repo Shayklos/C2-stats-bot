@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 import database, sqlite3
 import methods
 from logger import *
-import urllib.request
 import traceback 
 
 developerMode = False
@@ -26,20 +25,7 @@ db = sqlite3.connect(r"files\cultris.db", check_same_thread=False)
 
 
 
-async def logInteraction(interaction:discord.Interaction):
-    log_output = f"{interaction.user.display_name} ({interaction.user.name}) used /{interaction.data['name']}"
-    if interaction.data.get('options'):
-        for option in interaction.data['options']:
-            if option.get('value'):
-                log_output += f" [{option['name']} = {option['value']}]"
-            else:
-                log_output += f" {option['name']}"
-                if option.get('options'):
-                    for suboption in option.get('options'):
-                        log_output += f" [{suboption['name']} = {suboption['value']}]"
 
-
-    log(log_output, "files/log_discord.txt")
 
 
 @tree.command(description="Returns stats of a user. If you can't find the user, maybe try with an old nickname?"
@@ -47,13 +33,10 @@ async def logInteraction(interaction:discord.Interaction):
               )
 @app_commands.describe(username='Ingame username of the player you\'re looking for. Leave empty to use your Discord display name.')
 async def stats(interaction: discord.Interaction, username: str=None, days: app_commands.Range[int, 1, 30] = 7):
-    
     try:
-        await logInteraction(interaction)
-        if not methods.isStatsChannel(interaction):
-            await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+        correct = await methods.checks(interaction)
+        if not correct:
             return
-        
         if not username:
             username = interaction.user.display_name
         ratio, userId, user = database.fuzzysearch(db, username.lower())
@@ -63,7 +46,7 @@ async def stats(interaction: discord.Interaction, username: str=None, days: app_
 
         timeStats = database.time_based_stats(db, userId, days=days)
         player = database.player_stats(db, userId)
-        netscore, netscoreDays = database.getNetscore(db, userId)
+        netscore, netscoreDays = database.getNetscore(db, userId, days=days)
         # print(netscore, netscoreDays)
         embed = discord.Embed(
                 title=player["name"],
@@ -112,9 +95,8 @@ async def stats(interaction: discord.Interaction, username: str=None, days: app_
               )
 @app_commands.describe(username='Ingame username of the player you\'re looking for. Leave empty to use your Discord display name.')
 async def legacystats(interaction: discord.Interaction, username: str=None):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     
     if not username:
@@ -182,13 +164,12 @@ async def legacystats(interaction: discord.Interaction, username: str=None):
 
 
 
-@tree.command(
+@tree.command(description="Top 5 in SPM and Cheese times in the last 7 days.",
         guild=guild,
         )
 async def weeklybest(interaction: discord.Interaction):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     top5SPM, top5Cheese = database.weekly_best(db)
     embed = discord.Embed(
@@ -202,7 +183,8 @@ async def weeklybest(interaction: discord.Interaction):
 **{top5SPM[3][0]}** - {round(top5SPM[3][1])}
 **{top5SPM[4][0]}** - {round(top5SPM[4][1])}
 
-""", inline=False)
+""", inline=True)
+    embed.add_field(name = '\u2800', value = "\u2800\n\u2800\n\u2800\n\u2800\n\u2800")
 
     embed.add_field(name = "Top 5 Cheese times (7d)", value = 
                     f"""**{top5Cheese[0][0]}** - {round(top5Cheese[0][1],2)}
@@ -211,7 +193,7 @@ async def weeklybest(interaction: discord.Interaction):
 **{top5Cheese[3][0]}** - {round(top5Cheese[3][1],2)}
 **{top5Cheese[4][0]}** - {round(top5Cheese[4][1],2)}
 
-""", inline=False)
+""", inline=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -220,9 +202,8 @@ async def weeklybest(interaction: discord.Interaction):
               ,guild=guild
               )
 async def online(interaction: discord.Interaction):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     players = database.getPlayersOnline(db)
     string = ""
@@ -262,9 +243,8 @@ group = app_commands.Group(name = 'leaderboard', description= "description")
 @app_commands.describe(days = "Number of days the period of time has (by default 7)",
                        page = "The page you want to see (by default 1). Use negative numbers to sort backwards")
 async def avgcombos(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7): 
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -279,9 +259,8 @@ async def avgcombos(interaction: discord.Interaction, page: int=1, days: app_com
 @app_commands.describe(days = "Number of days the period of time has (by default 7).",
                        page = "The page you want to see (by default 1). Use negative numbers to sort backwards.")
 async def netscores(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 2, 7] = 7):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -296,9 +275,8 @@ async def netscores(interaction: discord.Interaction, page: int=1, days: app_com
 @app_commands.describe(days = "Number of days the period of time has (by default 7).",
                        page = "The page you want to see (by default 1). Negative sorting disabled.")
 async def sent(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -313,9 +291,8 @@ async def sent(interaction: discord.Interaction, page: int=1, days: app_commands
 @app_commands.describe(page = "The page you want to see (by default 1). Negative page numbers are not allowed here.",
                        fast = "If fast = True then it will take values stored in database. If fast = False then it will get scores from gewaltig, taking way longer.")
 async def rankings(interaction: discord.Interaction, page: app_commands.Range[int, 1] = 1, fast: bool = True):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     pageSize = 20 
     start = pageSize * (page - 1) + 1
@@ -341,9 +318,8 @@ async def active(interaction: discord.Interaction,
                  page: int = 1,
                  days: app_commands.Range[int, 1, 30] = 7
                  ): 
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -358,9 +334,8 @@ async def active(interaction: discord.Interaction,
 @app_commands.describe(days = "Number of days the period of time has (by default 7)",
                        page = "The page you want to see (by default 1). Use negative numbers to sort backwards")
 async def avgspm(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -375,9 +350,8 @@ async def avgspm(interaction: discord.Interaction, page: int=1, days: app_comman
 @app_commands.describe(days = "Number of days the period of time has (by default 7)",
                        page = "The page you want to see (by default 1). Use negative numbers to sort backwards")
 async def avgbpm(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -388,14 +362,46 @@ async def avgbpm(interaction: discord.Interaction, page: int=1, days: app_comman
     await interaction.response.send_message(embed=embed)
 
 
+@group.command(description="Leaderboard of average OPM (Output (i.e. Sent+Blocked lines) per minute)")
+@app_commands.describe(days = "Number of days the period of time has (by default 7)",
+                       page = "The page you want to see (by default 1). Use negative numbers to sort backwards")
+async def avgopm(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7):
+    correct = await methods.checks(interaction)
+    if not correct:
+        return
+    embed = discord.Embed(
+            color=0x0B3C52,
+            description=methods.getPage(page, database.getavgOPM(db, days=days)),
+            title=f"Average OPM ({days} days)"
+        )
+    
+    await interaction.response.send_message(embed=embed)
+
+
+
+@group.command(description="Leaderboard of average OPB (Output (i.e. Sent+Blocked lines) per block)")
+@app_commands.describe(days = "Number of days the period of time has (by default 7)",
+                       page = "The page you want to see (by default 1). Use negative numbers to sort backwards")
+async def avgopb(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7):
+    correct = await methods.checks(interaction)
+    if not correct:
+        return
+    embed = discord.Embed(
+            color=0x0B3C52,
+            description=methods.getPage(page, database.getavgOPB(db, days=days)),
+            title=f"Average OPB ({days} days)"
+        )
+    
+    await interaction.response.send_message(embed=embed)
+
+
 
 @group.command(description="Leaderboard of average blocked% (Lines blocked/Lines Received)")
 @app_commands.describe(days = "Number of days the period of time has (by default 7)",
                        page = "The page you want to see (by default 1). Use negative numbers to sort backwards")
 async def blocked(interaction: discord.Interaction, page: int=1, days: app_commands.Range[int, 1, 30] = 7):
-    await logInteraction(interaction)
-    if not methods.isStatsChannel(interaction):
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    correct = await methods.checks(interaction)
+    if not correct:
         return
     embed = discord.Embed(
             color=0x0B3C52,
@@ -411,8 +417,11 @@ tree.add_command(group, guild=guild)
               ,guild=guild
               )
 async def help(interaction: discord.Interaction):
-    await logInteraction(interaction)
-    msg = """***/stats*** *[username] [days]* : Shows stats of a user in the last *[days]* days. By default, it will use your Discord display name as username, and in 7 days. If you can't find a user, try with an old username.
+    correct = await methods.checks(interaction)
+    if not correct:
+        return
+
+    await interaction.response.send_message("""***/stats*** *[username] [days]* : Shows stats of a user in the last *[days]* days. By default, it will use your Discord display name as username, and in 7 days. If you can't find a user, try with an old username.
 
 ***/legacystats*** *[username]* : Shows all-time stats of an user. By default, it will use your Discord display name as username. If you can't find a user, try with an old username.
 
@@ -424,27 +433,33 @@ __**Stats leaderboards**__
 
 These commands show a leaderboard in a single stat in a recent period of time. 
 You can choose the number of [days] this leaderboard will consider (normally up to 30 days). You can also select the [page] number, using negative numbers to sort backwards.
+                                   
+""")
+    await interaction.channel.send("""
 
 ***/leaderboard active*** *[page] [days]* : Time played
 ***/leaderboard avgcombos*** *[page] [days]* : Average best combo
-***/leaderboard avgspm*** *[page] [days]* : Average SPM
-***/leaderboard avgbpm*** *[page] [days]* : Average BPM
+***/leaderboard avgspm*** *[page] [days]* : Average SPM (Sent lines per minute)
+***/leaderboard avgopm*** *[page] [days]* : Average OPM (Output (Sent+Blocked lines) per minute)
+***/leaderboard avgopb*** *[page] [days]* : Average OPB (Output per block)
+***/leaderboard avgbpm*** *[page] [days]* : Average BPM (Blocks placed per minute)
 ***/leaderboard netscores*** *[page] [days]* : Score yesterday - Score [days] days ago (up to a week). Use /stats to see your real netscore now.
 ***/leaderboard sent*** *[page] [days]* : Total sent lines.
 ***/leaderboard rankings *** *[page] [fast]* : Current rank/scores. Doesn't work too well, specially at the end of the leaderboard. I've disabled negative page numbers for this reason. If `fast = True` it will display values stored in the database. If `fast = False` it will request them from gewaltig instead. No matter if this parameter is True or False, the positions on the leaderboard will be the same. 
 ***/leaderboard active*** *[page] [days]* : Time played
 
 Feel free to suggest additions/report bugs.
-"""
-    await interaction.response.send_message(msg)
-
+""")
 
 
 @client.event
 async def on_ready():
     await tree.sync(guild=None)
     await tree.sync(guild=discord.Object(id=202843125633384448))
+    await tree.sync(guild=discord.Object(id=485229208457576472))
     print("Bot ready!")
+
+
 
 
 if __name__ == '__main__':

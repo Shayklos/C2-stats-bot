@@ -1,4 +1,10 @@
-import discord, bot
+import discord, json
+import database
+from time import time
+from bot import developerMode
+from logger import log
+from settings import *
+
 
 def getPage(page, data, pageSize = 20, isTime = False):
     
@@ -31,17 +37,56 @@ def getPage(page, data, pageSize = 20, isTime = False):
     return description
 
 
-def isStatsChannel(interaction: discord.Interaction) -> bool:
-    if interaction.user.name in ['yoozenji', 'shayklos', 'forbiddenazalea']:
-        return True
-    if bot.developerMode:
+async def logInteraction(interaction:discord.Interaction):
+    log_output = f"{interaction.user.display_name} ({interaction.user.name}) used /{interaction.data['name']}"
+    if interaction.data.get('options'):
+        for option in interaction.data['options']:
+            if option.get('value'):
+                log_output += f" [{option['name']} = {option['value']}]"
+            else:
+                log_output += f" {option['name']}"
+                if option.get('options'):
+                    for suboption in option.get('options'):
+                        log_output += f" [{suboption['name']} = {suboption['value']}]"
+    log(log_output, "files/log_discord.txt")
+
+
+
+async def checks(interaction: discord.Interaction):
+    await logInteraction(interaction)
+    with open("files/settings.json", "r") as file:
+        data = json.load(file)
+    if data.get("locked"):
+        await interaction.response.send_message(f"Bot a bit busy! Try again in a minute.", ephemeral=True)
+        return False
+    if developerMode or interaction.user.name in admins:
         return True
     if interaction.channel.name != 'stats':
+        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
         return False
     return True
+
 
 
 def thousandsSeparator(n: int) -> str:
         #1212847128944 -> 1.212.847.128.944
         return f'{n:,}'.replace(',', '.')
 
+def check_netscores(db):
+    with open("files/settings.json", "r") as file:
+        data = json.load(file)
+    diff = time() - data.get("time")
+
+    if diff > 24*60*60:
+        data["time"] = int(time())
+        data["locked"] = True
+        with open("files/settings.json", "w") as file:
+            json.dump(data,file)
+
+        database.add_recent_profile_data(db,7,True,True)
+        data["locked"] = False
+        with open("files/settings.json", "w") as file:
+            json.dump(data,file)
+
+if __name__ == '__main__':
+    check_netscores(1)
