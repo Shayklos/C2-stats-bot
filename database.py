@@ -213,9 +213,11 @@ def add_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False, c
     try:
         with urllib.request.urlopen(url) as URL:
             data = json.load(URL)
-    except urllib.error.HTTPError:
+    except:
         # website is down at the moment
         log(f"in add_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
+        sleep(30)
+        add_profile_data(db, userId, add_to_netscores, commit)
         return
     
     if data.get("stats") is None:
@@ -359,12 +361,16 @@ def update_userlist(db: sqlite3.Connection):
                             stats.get("playedmin")]
                 # print(query,params)
                 db.execute(query,params)
-                log(f"Added user {id}.")
+                log(f"New account: user {data.get('name')} ({id}).")
                 id+=1
 
         except urllib.error.HTTPError:
-            # website is down at the moment
+            # no website
             return
+        except urllib.error.URLError:
+            # website is down at the moment / client has no internet connection
+            log("No connection", 'files/log_errors.txt')
+            update_userlist(db)
     
 
 def player_stats(db: sqlite3.Connection, userId = None, username = None):
@@ -408,7 +414,8 @@ def player_stats(db: sqlite3.Connection, userId = None, username = None):
     }
 
 
-def time_based_stats(db: sqlite3.Connection, userId = None, username = None, days = 7):
+def time_based_stats_old(db: sqlite3.Connection, userId = None, username = None, days = 7):
+    #deprecated
     if not (userId or username):
         return None
     if username and not userId:
@@ -468,19 +475,122 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
     }
 # print(time_based_stats(db, 5840))
 
-def weekly_best(db: sqlite3.Connection, days = 7):
+def time_based_stats(db: sqlite3.Connection, userId = None, username = None, days = 7):
+    #Get user's ID if not given
+    if not (userId or username):
+        return None
+    if username and not userId:
+        userId = find_userId(db, username)
+        if userId is None:
+            return None
+
+    date = datetime.now(tz = timezone('UTC'))-timedelta(days=days)
+
+    db.row_factory = sqlite3.Row
+    rounds = db.execute("""
+                        select 	
+                            roomsize,
+                            winner,	
+                            maxCombo,
+                            blocks,
+                            playDuration,
+                            linesSent,
+                            linesBlocked,
+                            linesGot
+	
+                        from 
+                    Rounds join Matches 
+                        on Rounds.roundId = Matches.roundId 
+                            join (select roundId, count(roundId) as roomsize, userId as winner from Rounds group by roundId) x 
+                        on x.roundId=Rounds.roundId 
+                        
+                        where start > ? and userId = ? and playDuration and ruleset = 0""", (date, userId))
+    db.row_factory = None
+
+    played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = 0
+    
+    for round in rounds:
+        played += 1
+        if round["roomsize"] == 1:
+            winned += 1
+            continue 
+
+        if round["winner"] == userId:
+            winned +=1
+        
+        bestCombo    = max(bestCombo, round["maxCombo"])
+        bestBPM      = max(bestBPM, 60*round["blocks"]/round["playDuration"])
+        comboSum    += round["maxCombo"]
+        blocks      += round["blocks"]
+        playedTime  += round["playDuration"]
+        sent        += round["linesSent"]
+        blocked     += round["linesBlocked"]
+        got         += round["linesGot"]
+        if powerTable.get(round["roomsize"]):
+            power +=  1800*(round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*powerTable.get(round["roomsize"]))
+        else:
+            power +=  600*(round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*(round["roomsize"] + 9.8))
+        
+    
+    playedTime /= 60 #minutes 
+
+    
+    try:
+        return{
+            "avgBPM" : blocks/playedTime , 
+            "avgCombo" : comboSum/played, 
+            "avgSPM" : sent/playedTime, 
+            "blockedpercent" : 100*blocked/got, 
+            "outputperpiece" :  100*(sent+blocked)/blocks, 
+            "outputperminute" : (sent+blocked)/playedTime,
+            "mins" : playedTime, 
+            "winrate" : 100*winned/played,
+            "played" : played,
+            "bestCombo" : bestCombo,
+            "bestBPM" : bestBPM,
+            "power": power/played
+        }
+    except ZeroDivisionError: #Player has barely played
+        return{
+            "avgBPM" : 0 , 
+            "avgCombo" : 0, 
+            "avgSPM" : 0, 
+            "blockedpercent" : 0, 
+            "outputperpiece" :  0, 
+            "outputperminute" : 0,
+            "mins" : 0, 
+            "winrate" : 0,
+            "played" : 0,
+            "bestCombo" : 0,
+            "bestBPM" : 0,
+        }
+
+
+
+def weekly_best(db: sqlite3.Connection, days = 7, top = 5):
+
+
     date_now = datetime.now(tz = timezone('UTC'))
     res = db.execute("""
-        with recentRounds as (select Matches.roundId, linesSent, playDuration, userId from Rounds inner join Matches on Rounds.roundId = Matches.roundId where start > ?)
-            select name, 60*recentRounds.linesSent/playDuration as SPM from recentRounds inner join Users on recentRounds.userId = Users.userId order by SPM desc limit 5
-        """, (date_now-timedelta(days=days),) )
-    
+        with recentRounds as 
+            (select Matches.roundId, linesSent, playDuration, userId from Rounds join Matches on Rounds.roundId = Matches.roundId where start > ?)
+        select name, 60*recentRounds.linesSent/playDuration as SPM 
+            from recentRounds join Users 
+                on recentRounds.userId = Users.userId 
+            order by SPM desc limit ?
+        """, (date_now-timedelta(days=days), top) )
     top5SPM = res.fetchall()
     
+    # cheeseRows = 0 if player has finished a Cheese game, but also if he's gone AFK,
+    # so additional filters are needed. It's faulty but is the best thing I could think of
     res = db.execute("""
-        select name, playDuration from Rounds join Matches on Rounds.roundId = Matches.roundId join Users on users.userId = Rounds.userId 
-        where blocks>8 and rounds.maxCombo> 2 and ruleset = 1 and start > ? and not cheeseRows order by playDuration asc limit 5                                
-                     """, (date_now-timedelta(days=days),) )
+        select name, playDuration 
+            from Rounds join Matches on 
+                Rounds.roundId = Matches.roundId 
+                    join Users on 
+                users.userId = Rounds.userId 
+            where blocks>8 and rounds.maxCombo> 2 and ruleset = 1 and start > ? and not cheeseRows order by playDuration asc limit ?                                
+                     """, (date_now-timedelta(days=days), top) )
     
     top5Cheese = res.fetchall()
 
@@ -534,12 +644,14 @@ def getNetscores(db: sqlite3.Connection, days = 7, aproximation = True):
 
     
 
-def getCombos(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesCombos):
+def getCombos(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesCombos, rawdata = False):
     combos = db.execute(f"""select Rounds.userId, name, cast(sum(Rounds.maxCombo) as float)/count(Matches.roundId) as avgCombo, count(Matches.roundId) as c
                 from Matches inner join Rounds on Matches.roundId = Rounds.roundId inner join users on users.userId = rounds.userId where ruleset = 0 and start > ? group by Rounds.userId having c>{requiredMatches} order by avgCombo desc """,
                 (datetime.now(tz = timezone('UTC'))-timedelta(days=days),)).fetchall()
-    
-    return [(combo[0], combo[1], f"**{combo[2]:.2f}** in {combo[3]} matches" ) for combo in combos ]
+    if rawdata:
+        return [(combo[0], combo[1], combo[2]) for combo in combos]
+    else:
+        return [(combo[0], combo[1], f"**{combo[2]:.2f}** in {combo[3]} matches" ) for combo in combos]
 
 
 
@@ -556,6 +668,18 @@ def getPlayersOnline(db: sqlite3.Connection):
     return [r[i][0] for i in range(len(r))]
 
 
+def getPlayersWhoPlayedRecently(db: sqlite3.Connection, hours=1):
+    date_now = datetime.now(tz = timezone('UTC'))
+    players = db.execute("select distinct name from Rounds join Matches on Rounds.roundId = Matches.roundId join Users on Users.userId = Rounds.userId where start > ?", 
+        (date_now-timedelta(hours=hours), )).fetchall()
+    guests = db.execute("select distinct guestName from Rounds join Matches on Rounds.roundId = Matches.roundId where guestName is not null and start>?", 
+        (date_now-timedelta(hours=hours), )).fetchall()
+
+    return{
+        "players": players,
+        "guests":guests
+    }
+
 def fuzzysearch(db: sqlite3.Connection, username: str) -> tuple:
     users = db.execute("select userId, name from Users where name is not ''").fetchall()
     ratios = sorted([(fuzz.ratio(username.lower(), user[1].lower()), user[0], user[1]) for user in users], reverse=True)
@@ -564,7 +688,7 @@ def fuzzysearch(db: sqlite3.Connection, username: str) -> tuple:
 
 
 
-def activePlayers(db: sqlite3.Connection, days = 7):
+def getTimePlayed(db: sqlite3.Connection, days = 7):
     date_now = datetime.now(tz = timezone('UTC'))
     res = db.execute(
         """select Users.userId, name, sum(playDuration) as mins from Rounds 
@@ -580,7 +704,7 @@ def update_ranks(db: sqlite3.Connection, old_round, new_round, commit = False):
     """
     Detects which persons have played on FFA since old_round and new_round, update
     """
-
+    #TODO: remake this function, it sucks
     if old_round>new_round:
         log("0 places changed in the leaderboard")
         return
@@ -603,21 +727,25 @@ on userId = u
         try:
             with urllib.request.urlopen(url) as URL:
                 data = json.load(URL)
-        except urllib.error.HTTPError:
+        except urllib.error.URLError:
             # website is down at the moment
             log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
+            sleep(30)
+            update_ranks(db, old_round, new_round, commit)
             return
 
         if data.get("stats") is None:
             query = "update Users set name = ? where userId = ?"
             params = (data.get("name"), id)
-            log(f"Couldn't add {id . old_round: {old_round}}. Weird rank")
+            log(f"Couldn't add {id}. old_round: {old_round}. Weird rank")
             continue
         else:
-            res = db.execute("select peakRank, peakRankScore from Users where userId = ?", (id,))
-            old_rank_data = res.fetchone() #320.0, 8
-            # print(old_rank_data)
+            res = db.execute("select peakRank, peakRankScore, name from Users where userId = ?", (id,)).fetchone()
+            old_rank_data = (res[0], res[1]) #320.0, 8
+            old_name = res[2]
             stats = data.get("stats")
+            if stats.get("name") != old_name:
+                log(f"ID: {id}: {old_name} → {stats.get('name')}", "files/log_namechanges.txt")
             query = """update Users 
                         set name = ?,
                             
@@ -648,7 +776,7 @@ on userId = u
         db.execute(query,params)
         db.commit()
         sleep(0.1) #releases database lock for a moment
-        log(f"Added {params[0]}")
+        log(f"Updated {params[0]}")
         changes.append((rank, stats.get("rank")))
         if not rank:
             NoneRanks = True
@@ -670,24 +798,24 @@ on userId = u
                      (MIN, MAX)).fetchall()
     offset = players[0][1] # = MIN
     result = [None]*len(players)
-    for change in sorted(changes, reverse=True):
-        try:
-            result[change[1]-offset] = (change[1] ,players[change[0]-offset][0]) #TODO : try except do the thing where all scores are sorted
-        except:
-            res = db.execute("select userId from Users where score is not null order by score desc").fetchall()
-            ids = [id[0] for id in res]
 
-            for i, id in enumerate(ids, start = 1):
-                db.execute("update Users set rank = ? where userId = ?", (i, id))
+    try:
+        for change in sorted(changes, reverse=True):
+            result[change[1]-offset] = (change[1] ,players[change[0]-offset][0]) 
+            del players[change[0]-offset]
+        for i in range(len(result)):
+            if not result[i]:
+                result[i] = (i+offset,players[0][0])
+                del players[0]
+    except:
+        res = db.execute("select userId from Users where score is not null order by score desc").fetchall()
+        ids = [id[0] for id in res]
 
-            db.commit()
-            return
-        del players[change[0]-offset]
-    for i in range(len(result)):
-        if not result[i]:
-            result[i] = (i+offset,players[0][0])
-            del players[0]
+        for i, id in enumerate(ids, start = 1):
+            db.execute("update Users set rank = ? where userId = ?", (i, id))
 
+        db.commit()
+        return
     #finally, update new ranks
     for rank, id in result:
         db.execute("update Users set rank = ? where userId = ?", (rank,id))
@@ -711,7 +839,7 @@ def getRankings(db: sqlite3.Connection, start = 1, end = 20, fast = True):
                 try:
                     with urllib.request.urlopen(url) as URL:
                         data = json.load(URL)
-                except urllib.error.HTTPError:
+                except:
                     score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
                     log(f"In getRankings: Couldn't display {userId} in leaderboard.", file = 'files/log_error.txt')
                     leaderboard.append((userId, name, f"~{score:.2f}"))
@@ -730,7 +858,7 @@ def getRankings(db: sqlite3.Connection, start = 1, end = 20, fast = True):
                 try:
                     with urllib.request.urlopen(url) as URL:
                         data = json.load(URL)
-                except urllib.error.HTTPError:
+                except:
                     score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
                     log(f"Couldn't display {userId} in leaderboard.", "files/log_error.txt")
                     leaderboard.append((userId, name, f"~{score:.2f}"))
@@ -750,7 +878,7 @@ def getSent(db: sqlite3.Connection, days = 7):
     
     return [(combo[0], combo[1], f"{thousandsSeparator(combo[2])}") for combo in sent ]
 
-def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesSPM):
+def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesSPM, rawdata = False):
     date_now = datetime.now(tz = timezone('UTC'))
     spm = db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.linesSent) as float)/sum(playDuration),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
@@ -760,7 +888,10 @@ def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
         (date_now-timedelta(days=days),requiredMatches)).fetchall()
 
 
-    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm ]
+    if rawdata:
+        return [(combo[0], combo[1], combo[2]) for combo in spm]
+    else:
+        return [(combo[0], combo[1], f"**{combo[2]:.2f}** in {combo[3]} matches" ) for combo in spm]
 
 
 
@@ -815,10 +946,62 @@ def getBlockedPercent(db: sqlite3.Connection, days = 7, requiredMatches = requir
 
     return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm ]
 
+def getPower(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+    #normalized opm
+    date_now = datetime.now(tz = timezone('UTC'))
+    power = db.execute(
+        """select users.userId, name, round(avg(powerStat),1) as power, count(roundId) as playedmatches from (
+with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
+select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
+) t
+join users on users.userid= t.userid
+group by users.userId having playedmatches>? order by power desc
+        """,
+        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+    
+    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in power ]
+
+
+def userCheeseTimes(db: sqlite3.Connection, userId, days=7, limit = 20):
+    date_now = datetime.now(tz = timezone('UTC'))
+    times = db.execute(
+        """
+select round(playDuration,2) as time, round(60*blocks/playDuration,1) as BPM 
+    from Rounds join Matches on Rounds.roundId = Matches.roundId 
+    where   ruleset = 1 
+        and not cheeserows 
+        and blocks > 8 
+        and maxCombo > 2 
+        and userId = ? 
+        and start > ?
+    order by playDuration asc limit ?
+""", 
+    (userId, date_now-timedelta(days=days), limit)).fetchall()
+
+    return times
+
+
+def userComboSpread(db: sqlite3.Connection, userId, days=7):
+    date_now = datetime.now(tz = timezone('UTC'))
+    combos = db.execute("""
+    select maxCombo, count(*) from 
+        Rounds join Matches on Rounds.roundId = Matches.roundId 
+        where ruleset = 0 and 
+            userId = ? and 
+            start > ?
+        group by maxCombo
+        """,
+    (userId, date_now-timedelta(days=days))).fetchall()
+
+    return combos
+
+
 
 if __name__ == "__main__":
     db = sqlite3.connect(r"files\cultris.db")
-    print(getNetscore(db, 6154, days=7))
+    print(userComboSpread(db, 5840, days=7))
+    # print(database.time_based_stats(db, 2440, days=26))
+    
     # print(getBlockedPercent(db)) 
     
 # print(getSent(db))
