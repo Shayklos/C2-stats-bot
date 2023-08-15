@@ -6,7 +6,7 @@ from logger import log
 from settings import *
 
 
-def getPage(page, data, pageSize = 20, isTime = False):
+def getPage(page, data, pageSize = embedPageSize, isTime = False):
     
     #data must be in format:
     #data = [(userId, name, dataToBeShown)]
@@ -70,15 +70,16 @@ async def checks(interaction: discord.Interaction):
 
 def thousandsSeparator(n: int) -> str:
         #1212847128944 -> 1.212.847.128.944
-        return f'{n:,}'.replace(',', '.')
+        return f'{n:,}'
 
 def check_netscores(db):
     with open("files/settings.json", "r") as file:
         data = json.load(file)
-    diff = time() - data.get("time")
+    now = time()
+    diff = now - data.get("time")
 
     if diff > 24*60*60:
-        data["time"] = int(time())
+        data["time"] = int(now)
         data["locked"] = True
         with open("files/settings.json", "w") as file:
             json.dump(data,file)

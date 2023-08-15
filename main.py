@@ -5,16 +5,27 @@ import asyncio
 import bot, traceback
 import threading, multiprocessing
 from sys import version
+
+# TODO: Really should transform code to async at some point
 # TODO: Go through all functions and place try: except:s appropiately
-# TODO: Function that adds stuff from cultris.db to fullCultris.db
 # TODO: (in database.py) check if any queries break when userId or similar is null
 # TODO: Give message when a user DM's the bot   
 # TODO: Look into /leaderboard rankings fast=False
-# TODO: Deal with website being down
-# TODO: Distribution plots
+# TODO: Deal with website being down. Test it
+# TODO: database backups
+# TODO: Max SPM, Max Sent
+# TODO: Function that finds a player in all leaderboards
+# TODO: Lower required matches for leaderboards when days is low
+# TODO: Delete old logging
+# TODO: Update leaderboard every now and then
+# TODO: FFA Notification system
+# TODO: Week up/down in /stats /leaderboard
+# TODO: Fix database is locked error when a round is added but not processed
 
 def main()->None:    
-    print(version)
+    if bot.developerMode:
+        print(version)
+        print("DEVELOPER MODE")
 
     db = sqlite3.connect(r"files\cultris.db", check_same_thread=False)
     while True:
@@ -27,7 +38,7 @@ def main()->None:
         update_ranks(db, oldRound+1, newRound, commit=True)
         delete_old_data(db)
         check_netscores(db)
-
+    
         sleep(30)
 
 
@@ -46,4 +57,4 @@ if __name__ == "__main__":
         while True:
             sleep(1)
     except Exception as e:
-        log(traceback.format_exc())
+        log(traceback.format_exc(), file='files/log_errors.txt')
