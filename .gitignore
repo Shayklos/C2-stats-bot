@@ -1,0 +1,13 @@
+files/extra/sql_queries.sql
+files/extra/embed_dict_example.py
+files/extra/c2 Modes.csv
+files/extra/button_styles.png
+files/extra/Average OPM - SPM per roomsize.ods
+files/extra/all-time leaderboards/activity.ods
+files/cultris - Copy.db
+files/fullCultris.db
+test.py
+.env
+leaderboard.py
+*.pyc
+*.txt
