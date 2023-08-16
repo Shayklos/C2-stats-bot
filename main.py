@@ -21,6 +21,7 @@ from sys import version
 # TODO: FFA Notification system
 # TODO: Week up/down in /stats /leaderboard
 # TODO: Fix database is locked error when a round is added but not processed
+# TODO: Disable week/day buttons when they reached limit
 
 def main()->None:    
     if bot.developerMode:

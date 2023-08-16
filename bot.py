@@ -38,12 +38,12 @@ class Stats(discord.ui.View):
 
     def __init__(self, author, userId, days):
         super().__init__(timeout=120)
-        self.interactionUserId = author
+        self.interactionUser = author
         self.userId = userId
         self.days = days
         self.player = database.player_stats(db, userId)
         self.state = 0 #0: stats. 1: cheese. 2: combo
-
+        self.command = '/stats'
 
     async def on_timeout(self):
         for item in self.children:
@@ -54,13 +54,14 @@ class Stats(discord.ui.View):
     
     async def interaction_check(self, interaction: discord.Interaction):
         #checks if user who used the button is the same who called the command
-        if interaction.user.id == self.interactionUserId:
+        if interaction.user == self.interactionUser:
             return True
         else:
             await interaction.user.send("Only the user who called the command can use the buttons.")
     
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
+        print(error)
         await interaction.user.send("Something went horribly wrong. Uh oh.")
     
 
@@ -69,7 +70,11 @@ class Stats(discord.ui.View):
             if item.label in list:
                 item.disabled = False
 
-        
+
+    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
+
+
     def createStatsEmbed(self, userId, days):
             timeStats = database.time_based_stats(db, userId, days=days)
             player = self.player
@@ -157,7 +162,7 @@ class Stats(discord.ui.View):
 
 
     async def editEmbed(self, interaction: discord.Interaction):
-       match self.state:
+        match self.state:
             case 0: #Stats
                 await interaction.response.edit_message(
                     embed=self.createStatsEmbed(self.userId, self.days), 
@@ -173,36 +178,45 @@ class Stats(discord.ui.View):
 
     @discord.ui.button(label="Week down", row = 0, style=discord.ButtonStyle.primary, emoji="⏬") 
     async def week_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.days = max(1, self.days-7)
         await self.editEmbed(interaction)
 
 
     @discord.ui.button(label="Day down", row = 0, style=discord.ButtonStyle.primary, emoji="⬇️") 
     async def day_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.days = max(1, self.days-1)
         await self.editEmbed(interaction)
 
 
     @discord.ui.button(label="Day up", row = 0, style=discord.ButtonStyle.primary, emoji="⬆️") 
     async def day_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.days = min(database.dbDaysLimit, self.days+1)
         await self.editEmbed(interaction)   
 
+
     @discord.ui.button(label="Week up", row = 0, style=discord.ButtonStyle.primary, emoji="⏫") 
     async def week_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.days = min(database.dbDaysLimit, self.days+7)
         await self.editEmbed(interaction)
 
+
     @discord.ui.button(label="Round stats", row=1, style = discord.ButtonStyle.primary, emoji = "📊", disabled = True) 
     async def stats(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.state = 0
         button.disabled = True
         self.disable_buttons(["Cheese times", "Combo spread"])
 
         await self.editEmbed(interaction)
 
+
     @discord.ui.button(label="Cheese times", row=1, style=discord.ButtonStyle.primary, emoji="🧀") 
     async def cheese(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.state = 1
         button.disabled = True
         self.disable_buttons(["Round stats", "Combo spread"])
@@ -212,6 +226,7 @@ class Stats(discord.ui.View):
 
     @discord.ui.button(label="Combo spread", row=1, style = discord.ButtonStyle.primary, emoji = "🔢") 
     async def combo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
         self.state = 2
         button.disabled = True
         self.disable_buttons(["Round stats", "Cheese times"])
@@ -236,7 +251,7 @@ async def stats(interaction: discord.Interaction, username: str=None, days: app_
         ratio, userId, user = database.fuzzysearch(db, username.lower())
         msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
   
-        view = Stats(interaction.user.id, userId, days)
+        view = Stats(interaction.user, userId, days)
 
         embed = view.createStatsEmbed(userId, days)
         await interaction.response.send_message(msg, embed=embed, view=view)
@@ -430,11 +445,11 @@ class Leaderboard(discord.ui.View):
 
     def __init__(self, author, stat, days, page):
         super().__init__(timeout=120)
-        self.interactionUserId = author
+        self.interactionUser = author
         self._stat = stat
         self.page = page
         self.days = days
-
+        self.command = '/leaderboard'
 
     async def on_timeout(self):
         print("timeout")
@@ -446,15 +461,19 @@ class Leaderboard(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction):
         #checks if user who used the button is the same who called the command
-        assert interaction.user.id == self.interactionUserId
-        return True
-        
-
+        if interaction.user == self.interactionUser:
+            return True
+        else:
+            await interaction.user.send("Only the user who called the command can use the buttons.")
+    
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
         print(error)
-        await interaction.user.send("Only the user who called the command can use the buttons.")
+        await interaction.user.send("Something went horribly wrong. Uh oh.")
 
+
+    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
 
 
     def getData(self, page, stat, days, pageSize = database.embedPageSize):
@@ -527,6 +546,7 @@ class Leaderboard(discord.ui.View):
 
     @discord.ui.button(label="Day down", row = 0, style=discord.ButtonStyle.primary, emoji="⬇️") 
     async def day_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
         self.days = max(1, self.days-1)
         description, title = self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
@@ -540,6 +560,7 @@ class Leaderboard(discord.ui.View):
 
     @discord.ui.button(label="Page down", row = 1, style=discord.ButtonStyle.primary, emoji="⬅️") 
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
         self.page = -1 if self.page == 1 else self.page - 1
         description, title = self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
@@ -553,6 +574,7 @@ class Leaderboard(discord.ui.View):
 
     @discord.ui.button(label="Page up", row = 1, style=discord.ButtonStyle.primary, emoji="➡️") 
     async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
         self.page = 1 if self.page == -1 else self.page + 1
         description, title = self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
@@ -566,6 +588,7 @@ class Leaderboard(discord.ui.View):
 
     @discord.ui.button(label="Day up", row = 0, style=discord.ButtonStyle.primary, emoji="⬆️") 
     async def day_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
         self.days = min(database.dbDaysLimit, self.days+1)
         description, title = self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
@@ -589,7 +612,7 @@ async def leaderboard(interaction: discord.Interaction, stat: str, days: app_com
     if not correct:
         return
 
-    view = Leaderboard(interaction.user.id, stat, days, page)
+    view = Leaderboard(interaction.user, stat, days, page)
 
     #Contents of message
     description, title = view.getData(page, stat, days)
