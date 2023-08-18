@@ -415,30 +415,98 @@ async def online(interaction: discord.Interaction):
 # tree.add_command(hello_context_menu)
 
 
+class Rankings(discord.ui.View):
+
+    def __init__(self, author, page):
+        super().__init__(timeout=120)
+        self.interactionUser = author
+        self.page = page
+        self.command = '/rankings'
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.style = discord.ButtonStyle.grey
+            item.disabled = True
+        await self.message.edit(view=self)
+
+    
+    async def interaction_check(self, interaction: discord.Interaction):
+        #checks if user who used the button is the same who called the command
+        if interaction.user == self.interactionUser:
+            return True
+        else:
+            await interaction.user.send("Only the user who called the command can use the buttons.")
+    
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
+        print(error)
+        await interaction.user.send("Something went horribly wrong. Uh oh.")
+    
+
+    def disable_buttons(self, list):
+        for item in self.children:
+            if item.label in list:
+                item.disabled = False
+
+
+    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
+
+
+
+    def createEmbed(self, page):
+        pageSize = 20 
+        start = pageSize * (page - 1) + 1
+        end = start + pageSize -1
+        data = database.getRankings(db, start, end)
+        description = ""
+        for element in data:
+            description += f"{start}. [{element[1]}](https://gewaltig.net/ProfileView/{element[0]}) {element[2]}\n"
+            start+=1
+
+        embed = discord.Embed(
+                color=0x0B3C52,
+                description=description,
+                title=f"Leaderboard"
+            )
+        return embed
+
+
+    @discord.ui.button(label="Page down", row = 0, style=discord.ButtonStyle.primary, emoji="⏬") 
+    async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
+        self.page = max(1, self.page-1)
+        embed = self.createEmbed(self.page)
+        await interaction.response.edit_message(embed=embed, view = self)
+
+
+
+    @discord.ui.button(label="Page up", row = 0, style=discord.ButtonStyle.primary, emoji="⏫") 
+    async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
+        self.page +=1
+        embed = self.createEmbed(self.page)
+        await interaction.response.edit_message(embed=embed, view = self)
+
+
+
+
+
+
 
 @tree.command(description="Displays current leaderboard. Doesn't work too well... the positions of may not be accurate.")
-@app_commands.describe(page = "The page you want to see (by default 1). Negative page numbers are not allowed here.",
-                       fast = "If fast = True then it will take values stored in database. If fast = False then it will get scores from gewaltig, taking way longer.")
-async def rankings(interaction: discord.Interaction, page: app_commands.Range[int, 1] = 1, fast: bool = True):
+@app_commands.describe(page = "The page you want to see (by default 1). Negative page numbers are not allowed here.")
+
+async def rankings(interaction: discord.Interaction, page: app_commands.Range[int, 1] = 1):
     correct = await methods.checks(interaction)
     if not correct:
         return
-    pageSize = 20 
-    start = pageSize * (page - 1) + 1
-    end = start + pageSize -1
-    data = database.getRankings(db, start, end, fast)
-    description = ""
-    for element in data:
-        description += f"{start}. [{element[1]}](https://gewaltig.net/ProfileView/{element[0]}) {element[2]}\n"
-        start+=1
+    
+    view = Rankings(interaction.user, page)
 
-    embed = discord.Embed(
-            color=0x0B3C52,
-            description=description,
-            title=f"Leaderboard"
-        )
-    await interaction.response.send_message(embed=embed)
-
+    embed = view.createEmbed(page)
+    await interaction.response.send_message(embed = embed, view = view)
+    view.message = await interaction.original_response()
 
 
 class Leaderboard(discord.ui.View):

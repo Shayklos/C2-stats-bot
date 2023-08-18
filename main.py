@@ -3,7 +3,7 @@ from methods import *
 from time import sleep
 import asyncio
 import bot, traceback
-import threading, multiprocessing
+import multiprocessing
 from sys import version
 
 # TODO: Really should transform code to async at some point
@@ -22,6 +22,8 @@ from sys import version
 # TODO: Week up/down in /stats /leaderboard
 # TODO: Fix database is locked error when a round is added but not processed
 # TODO: Disable week/day buttons when they reached limit
+# TODO: /leaderboard Netscores breaks when days>7 with buttons
+# TODO: Safe way of closing the bot
 
 def main()->None:    
     if bot.developerMode:
@@ -39,7 +41,8 @@ def main()->None:
         update_ranks(db, oldRound+1, newRound, commit=True)
         delete_old_data(db)
         check_netscores(db)
-    
+        check_rankings(db)
+
         sleep(30)
 
 
