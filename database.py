@@ -3,7 +3,6 @@ from settings import *
 from datetime import datetime,timedelta
 from pytz import timezone
 from logger import *
-from concurrent.futures import ThreadPoolExecutor
 from thefuzz import fuzz
 from time import sleep
 from methods import *
@@ -202,7 +201,7 @@ def find_userId(db: sqlite3.Connection, username: str):
     return res[0]
 
 
-def add_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False, commit = False):
+def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False, commit = False):
     """
     Adds/updates to db data found in user profiles (maxCombo, avgBPM, maxBPM, etc)
     """
@@ -215,9 +214,9 @@ def add_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False, c
             data = json.load(URL)
     except:
         # website is down at the moment
-        log(f"in add_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
+        log(f"in update_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
         sleep(30)
-        add_profile_data(db, userId, add_to_netscores, commit)
+        update_profile_data(db, userId, add_to_netscores, commit)
         return
     
     if data.get("stats") is None:
@@ -289,7 +288,7 @@ def add_recent_profile_data(db: sqlite3.Connection, days=7, add_to_netscores=Fal
     # with ThreadPoolExecutor(max_workers=1) as executor:
     #     futures = [executor.submit(function, x) for x in range(10)]
     while id := res.fetchone():
-        add_profile_data(db, id[0], add_to_netscores=add_to_netscores, commit=commit)
+        update_profile_data(db, id[0], add_to_netscores=add_to_netscores, commit=commit)
     
 
 def add_netscore(db: sqlite3.Connection, userId, score):
@@ -380,7 +379,7 @@ def player_stats(db: sqlite3.Connection, userId = None, username = None):
         userId = find_userId(db, username)
         if userId is None:
             return None
-    hash = add_profile_data(db, userId, commit=True)
+    hash = update_profile_data(db, userId, commit=True)
     res = db.execute("select * from Users where userId = ?", (userId,))
     data = res.fetchone()
     return {
@@ -951,11 +950,11 @@ def getPower(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatches
     date_now = datetime.now(tz = timezone('UTC'))
     power = db.execute(
         """select users.userId, name, round(avg(powerStat),1) as power, count(roundId) as playedmatches from (
-with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
-select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
-) t
-join users on users.userid= t.userid
-group by users.userId having playedmatches>? order by power desc
+            with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
+            select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
+            ) t
+            join users on users.userid= t.userid
+            group by users.userId having playedmatches>? order by power desc
         """,
         (date_now-timedelta(days=days),requiredMatches)).fetchall()
     
@@ -996,10 +995,46 @@ def userComboSpread(db: sqlite3.Connection, userId, days=7):
     return combos
 
 
+def refresh_rankings(db: sqlite3.Connection, refresh_limit: int):
+    """
+    Finds all the players in the top [refresh_limit] that haven't played in the last week and updates those.
+    """
+
+    date_now = datetime.now(tz = timezone('UTC'))
+    #Gets inactive players
+    inactive_users = db.execute("""
+        with RecentRounds as 
+            (select distinct userId from 
+                Rounds join Matches
+                    on Rounds.roundId = Matches.roundId 
+                where start > ?)
+
+        select Users.userId, Users.name from 
+            Users left join RecentRounds 
+                on RecentRounds.userId = Users.userId 
+            where RecentRounds.userId is null and 
+                Users.rank < ?
+        """,
+        (date_now - timedelta(7), refresh_limit) ) 
+
+    #Updates their score
+    for userId, _ in inactive_users:
+        update_profile_data(db, userId)
+
+    #Sort the leaderboard
+    res = db.execute("select userId from Users where score is not null order by score desc").fetchall()
+    ids = [id[0] for id in res]
+
+    for i, id in enumerate(ids, start = 1):
+        db.execute("update Users set rank = ? where userId = ?", (i, id))
+    
+    db.commit()
+
 
 if __name__ == "__main__":
     db = sqlite3.connect(r"files\cultris.db")
-    print(userComboSpread(db, 5840, days=7))
+    # refresh_rankings(db, 100)
+    # print(userComboSpread(db, 5840, days=7))
     # print(database.time_based_stats(db, 2440, days=26))
     
     # print(getBlockedPercent(db)) 

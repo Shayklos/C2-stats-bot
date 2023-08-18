@@ -8,9 +8,9 @@ from settings import *
 
 def getPage(page, data, pageSize = embedPageSize, isTime = False):
     
-    #data must be in format:
-    #data = [(userId, name, dataToBeShown)]
-    #dataToBeShwon will be ordered descending
+    """data must be in format:
+    data = [(userId, name, dataToBeShown)]
+    dataToBeShwon will be ordered descending"""
 
     if pageSize*(page - 1) > len(data):
         page = -1
@@ -76,18 +76,39 @@ def check_netscores(db):
     with open("files/settings.json", "r") as file:
         data = json.load(file)
     now = time()
-    diff = now - data.get("time")
+    diff = now - data.get("NetscoreTime")
 
-    if diff > 24*60*60:
-        data["time"] = int(now)
-        data["locked"] = True
-        with open("files/settings.json", "w") as file:
-            json.dump(data,file)
+    if diff < 24*60*60: #A day
+        return
+    
+    data["NetscoreTime"] = int(now)
+    data["locked"] = True
+    with open("files/settings.json", "w") as file:
+        json.dump(data,file)
 
-        database.add_recent_profile_data(db,7,True,True)
-        data["locked"] = False
-        with open("files/settings.json", "w") as file:
-            json.dump(data,file)
+    database.add_recent_profile_data(db,7,True,True)
+    data["locked"] = False
+    with open("files/settings.json", "w") as file:
+        json.dump(data,file)
+
+def check_rankings(db):
+    with open("files/settings.json", "r") as file:
+        data = json.load(file)
+    now = time()
+    diff = now - data.get("RefreshRankingsTime")
+
+    if diff < 7*24*60*60: #A week
+        return
+    
+    data["RefreshRankingsTime"] = int(now)
+    data["locked"] = True
+    with open("files/settings.json", "w") as file:
+        json.dump(data,file)
+
+    database.refresh_rankings(db,300)
+    data["locked"] = False
+    with open("files/settings.json", "w") as file:
+        json.dump(data,file)
 
 if __name__ == '__main__':
     check_netscores(1)
