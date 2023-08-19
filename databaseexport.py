@@ -16,16 +16,18 @@ def updateUsers(dbfrom: sqlite3.Connection, dbto: sqlite3.Connection):
     Copies the Users table of smalldb to fulldb
     """
     # dbfrom.row_factory = sqlite3.Row
+    print("Copying Users table")
     dbto.execute("delete from Users") 
     users = dbfrom.execute("select * from Users")
     
     for user in users:
         dbto.execute("insert into Users values" + values(user), user)
-
     dbto.commit()
+    print("Users table copied")
 
 
 def addRounds(dbfrom: sqlite3.Connection, dbto: sqlite3.Connection):
+    print("Adding new rounds")
     maxID = dbto.execute("select max(RoundId) from Rounds").fetchone()
     matches = dbfrom.execute("select * from Matches where roundId > ?", maxID)
     rounds = dbfrom.execute("select * from Rounds where roundId > ?", maxID)
@@ -37,6 +39,7 @@ def addRounds(dbfrom: sqlite3.Connection, dbto: sqlite3.Connection):
         dbto.execute("insert into Rounds values" + values(round), round)
 
     dbto.commit()
+    print("New rounds added")
 
 
 def updateDatabase(dbfrom: sqlite3.Connection,  dbto: sqlite3.Connection):
@@ -49,6 +52,7 @@ def updateDatabase(dbfrom: sqlite3.Connection,  dbto: sqlite3.Connection):
 
 
 if __name__ == "__main__":
+    print("Establishing connections")
     fulldb = sqlite3.connect("files/fullCultris.db")
     smalldb = sqlite3.connect("files/cultris.db")
     updateDatabase(smalldb, fulldb)
