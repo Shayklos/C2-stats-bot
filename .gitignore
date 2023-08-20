@@ -12,3 +12,4 @@ leaderboard.py
 *.pyc
 *.txt
 files/settings.json
+*.png

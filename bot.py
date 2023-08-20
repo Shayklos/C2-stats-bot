@@ -10,6 +10,7 @@ import database, sqlite3
 import methods
 from logger import *
 import traceback 
+import json, urllib.request
 
 developerMode = False
 if __name__ == "__main__":
@@ -244,7 +245,7 @@ class Stats(discord.ui.View):
               ,guild=guild
               )
 @app_commands.describe(username='Ingame username of the player you\'re looking for. Leave empty to use your Discord display name.')
-async def stats(interaction: discord.Interaction, username: str=None, days: app_commands.Range[int, 1, 30] = 7):
+async def stats(interaction: discord.Interaction, username: str= None, days: app_commands.Range[int, 1, 30] = 7):
     try:
         correct = await methods.checks(interaction)
         if not correct:
@@ -776,6 +777,8 @@ OPB stands for Output per block. The way to calculate is (lineSent + linesBlocke
 
 ***/rankings *** *[page] [fast]* : Current rank/scores. Doesn't work too well, specially at the end of the leaderboard. I've disabled negative page numbers for this reason. If `fast = True` it will display values stored in the database. If `fast = False` it will request them from gewaltig instead. No matter if this parameter is True or False, the positions on the leaderboard will be the same. 
 
+***/challenges*** *[challenge]* : Displays stats of a singleplayer challenge (Maserati, Survivor, Swiss Cheese...).
+
 Feel free to suggest additions/report bugs."""
             
     await interaction.response.send_message(msg, ephemeral = interaction.user.name != 'shayklos')
@@ -792,6 +795,171 @@ async def help_autocomplete(interaction: discord.Interaction, current: str):
         app_commands.Choice(name=about, value=about)
         for about in abouts if current.lower() in about.lower()
     ]
+
+
+
+class ChallengeButton(discord.ui.Button):
+    async def callback(self, interaction):
+        self.view.challenge = self.label
+        await interaction.response.edit_message(embed = self.view.createEmbed(interaction), view = self.view)
+
+class Challenges(discord.ui.View):
+
+    def __init__(self, author, userId, challenge):
+        super().__init__(timeout=120)
+        self.interactionUser = author
+        self.userId = userId
+        self.challenge = challenge
+        url = database.BASE_USER_URL+str(userId)
+        with urllib.request.urlopen(url) as URL:
+            self.playerData = json.load(URL)
+        self.command = '/challenges'
+        for i, label in enumerate(
+            ['Maserati', 'Survivor', 'Swiss cheese', '49.6 µFortnight', 'Ten', "James Clewett's", 'Quickstart', 'Shi Tai Ye']
+            ):
+            self.add_item(
+                ChallengeButton(label = label, 
+                                row = i//4, 
+                                style=discord.ButtonStyle.primary))
+
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.style = discord.ButtonStyle.grey
+            item.disabled = True
+        await self.message.edit(view=self)
+
+    
+    async def interaction_check(self, interaction: discord.Interaction):
+        #checks if user who used the button is the same who called the command
+        if interaction.user == self.interactionUser:
+            return True
+        else:
+            await interaction.user.send("Only the user who called the command can use the buttons.")
+    
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
+        print(error)
+        await interaction.user.send("Something went horribly wrong. Uh oh.")
+    
+
+    def disable_buttons(self, list):
+        for item in self.children:
+            if item.label in list:
+                item.disabled = False
+
+
+    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
+
+
+    def createEmbed(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+                    title=f"{self.challenge} of {self.playerData.get('name')}",
+                    color=0x0B3C52,
+                    url=f"https://gewaltig.net/ProfileView/{self.userId}",
+                )
+
+        challenge = self.playerData.get("challenges")
+        match self.challenge:
+            case "Maserati":
+                data = challenge.get("ol-maserati")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "Blocks", value = data.get("blocks"))
+
+            case "Survivor":
+                data = challenge.get("ol-survivor")
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+
+            case "Swiss cheese":
+                data = challenge.get("ol-cheese")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "Blocks", value = data.get("blocks"))
+
+            case "49.6 µFortnight":
+                data = challenge.get("ol-send")
+                embed.add_field(name = "Lines sent", value = data.get("linesSent"))
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+
+            case "Ten":
+                data = challenge.get("ol-ten")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+
+            case "James Clewett's":
+                data = challenge.get("ol-clewett")
+                embed.add_field(name = "Tetrises", value = data.get("tetrii"))
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}")
+
+            case "Quickstart":
+                data = challenge.get("ol-qs")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+
+            case "Shi Tai Ye":
+                data = challenge.get("ol-tgm")
+                embed.add_field(name = "Lines cleared", value = data.get("linesCleared"))
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}")
+
+        embed.description = data.get("date")
+        embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{self.playerData.get('gravatarHash')}?d=https://i.imgur.com/Gms07El.png")
+
+        
+        return embed
+
+    
+
+
+
+@tree.command(description="Returns stats of the singleplayer challenges."
+              ,guild=guild
+              )
+@app_commands.describe(challenge='By default Maserati (40L Sprint).')
+async def challenges(interaction: discord.Interaction, username: str = None, challenge: str = 'Maserati'):
+    try:
+        correct = await methods.checks(interaction)
+        if not correct:
+            return
+        
+        if not username:
+            username = interaction.user.display_name
+
+        ratio, userId, user = database.fuzzysearch(db, username.lower())
+        msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
+  
+        view = Challenges(interaction.user, userId, challenge)
+
+        await interaction.response.send_message(embed = view.createEmbed(challenge), view=view)
+        view.message = await interaction.original_response()
+        
+
+    except Exception as e:
+        print(e)
+        log(traceback.format_exc())
+
+
+
+
+@challenges.autocomplete('challenge')
+async def challenges_autocomplete(interaction: discord.Interaction, current: str):
+
+    challenges = [
+        'Maserati',
+        'Survivor',
+        'Swiss cheese',
+        '49.6 µFortnight',
+        'Ten',
+        "James Clewett's",
+        'Quickstart',
+        'Shi Tai Ye',
+        
+    ]
+    return [
+        app_commands.Choice(name=challenge, value=challenge)
+        for challenge in challenges if current.lower() in challenge.lower()
+    ]
+
 
 
 class ModalTest(discord.ui.Modal, title='Modal Test Title'):

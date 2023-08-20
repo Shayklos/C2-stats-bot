@@ -271,7 +271,7 @@ def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False
             log(f"Added {params[0]}")
             break
     
-    return data.get("gravatarHash")
+    return data
 
 # add_profile_data(db, 5840)
 
@@ -379,7 +379,7 @@ def player_stats(db: sqlite3.Connection, userId = None, username = None):
         userId = find_userId(db, username)
         if userId is None:
             return None
-    hash = update_profile_data(db, userId, commit=True)
+    hash = update_profile_data(db, userId, commit=True).get("gravatarHash")
     res = db.execute("select * from Users where userId = ?", (userId,))
     data = res.fetchone()
     return {
