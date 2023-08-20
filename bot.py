@@ -17,11 +17,9 @@ if __name__ == "__main__":
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD = os.getenv('DISCORD_GUILD')
 GUILD_ID = os.getenv('DISCORD_GUILD_ID')
 
-
-intents = discord.Intents.all()
+intents = discord.Intents.default()
 client  = discord.Client(intents=intents, activity=discord.Game(name="Cultris II"))
 tree    = app_commands.CommandTree(client)
 guild   = discord.Object(id=GUILD_ID) if developerMode else None
@@ -29,6 +27,13 @@ db = sqlite3.connect(r"files/cultris.db")
 
 
 
+
+@client.event
+async def on_ready():
+    await tree.sync(guild=None)
+    await tree.sync(guild=discord.Object(id=202843125633384448))
+    await tree.sync(guild=discord.Object(id=485229208457576472))
+    print("Bot ready!")
 
 
 
@@ -86,9 +91,14 @@ class Stats(discord.ui.View):
                     description=f"{days} days stats:"
                 )
             if player["rank"]:
-                embed.add_field(name="Rank", value=player["rank"], inline=True)
-                embed.add_field(name="Score", value=f"{player['score']:.1f}", inline=True)
-                embed.add_field(name="Recorded Peak", value=f"{player['peakRank']} ({player['peakRankScore']:.1f})", inline=True)
+                embed.add_field(name="Rank - Score", value=f"{player['rank']}     ({player['score']:.1f})", inline=True)
+                embed.add_field(name="Recorded Peak", value=f"{player['peakRank']}     ({player['peakRankScore']:.1f})", inline=True)
+                if netscoreDays:
+                    if netscoreDays == days:
+                        embed.add_field(name = 'Netscore', value = round(player['score'] - netscore,1))
+                    else:
+                        embed.add_field(name = f'Netscore ({netscoreDays}d)', value = round(player['score'] - netscore,1))
+
             if timeStats["played"]:
                 embed.add_field(name="Minutes played", value=f"{timeStats['mins']:.1f}m", inline=True)
                 embed.add_field(name="Games", value=timeStats["played"], inline=True)
@@ -104,12 +114,7 @@ class Stats(discord.ui.View):
 
                 embed.add_field(name="Max BPM", value=round(timeStats["bestBPM"], 1), inline=True)
                 embed.add_field(name="Avg BPM", value=round(timeStats["avgBPM"], 1), inline=True)
-
-                if netscoreDays:
-                    if netscoreDays == days:
-                        embed.add_field(name = 'Netscore', value = round(player['score'] - netscore,1))
-                    else:
-                        embed.add_field(name = f'Netscore ({netscoreDays}d)', value = round(player['score'] - netscore,1))
+                embed.add_field(name="Power", value=round(timeStats['power'], 1), inline=True)
             
             else:
                 embed.add_field(name="Minutes played", value="0", inline=True)
@@ -379,17 +384,14 @@ async def online(interaction: discord.Interaction):
     if not correct:
         return
     players = database.getPlayersOnline(db)
-    msg = ""
-    string = ""
-    for player in players:
-        string += player + ", "
 
     embed = discord.Embed(
             color=0x0B3C52,
-            description=string[:-2],
+            description=players,
             title="Players online"
         )
     
+    msg = ""
     if not interaction.guild and (developerMode or interaction.user.name in database.admins):        
         extradata = database.getPlayersWhoPlayedRecently(db)
         msg = "Players who played in the last hour: "
@@ -837,42 +839,7 @@ class ModalTest(discord.ui.Modal, title='Modal Test Title'):
 
 
 
-@client.event
-async def on_ready():
-    await tree.sync(guild=None)
-    await tree.sync(guild=discord.Object(id=202843125633384448))
-    await tree.sync(guild=discord.Object(id=485229208457576472))
-    print("Bot ready!")
 
-@client.event
-async def on_member_join(member: discord.Member):
-    log(f"{member.display_name} ({member.name}) joined {member.guild.name}", "files/members.txt")
-
-@client.event
-async def on_member_remove(member: discord.Member):
-    log(f"{member.display_name} ({member.name}) left {member.guild.name}", "files/members.txt")
-
-
-@client.event 
-async def on_message_edit(before : discord.Message, after : discord.Message):
-    if before.author.id == client.user.id:
-        return
-    msg = f"BEFORE: [{before.guild.name}] {before.author.display_name} ({before.author.name}) : {before.content}"
-    for attachment in before.attachments:
-        msg += f" {attachment.url}"
-    log(msg, "files/messages.txt")
-
-    msg = f"AFTER: [{after.guild.name}] {after.author.display_name} ({after.author.name}) : {after.content}"
-    for attachment in after.attachments:
-        msg += f" {attachment.url}"
-    log(msg, "files/messages.txt")
-
-@client.event 
-async def on_message_delete(message: discord.Message):
-    msg = f"DELETE [{message.guild.name}] {message.author.display_name} ({message.author.name}) : {message.content}"
-    for attachment in message.attachments:
-        msg += f" {attachment.url}"
-    log(msg, "files/messages.txt")
 
 
 if __name__ == '__main__':

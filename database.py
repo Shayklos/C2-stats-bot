@@ -46,7 +46,7 @@ def add_new_rounds(db: sqlite3.Connection):
             for round in data:
                 round_param1 = (
                     round.get("roundId"), 
-                    datetime.strptime(round.get('start').split('.')[0], timeformat), #ignoring ms
+                    datetime.strptime(round.get('start')[:-1].split('.')[0], timeformat), #ignoring ms
                     round.get("ruleset"), 
                     round.get("speedLimit"),
                     round.get("isOfficial")
@@ -657,14 +657,45 @@ def getCombos(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 def getPlayersOnline(db: sqlite3.Connection):
-    with urllib.request.urlopen("https://gewaltig.net/") as URL:
-        webdata = str(URL.read())
-    start = webdata.find("Currently Playing")
-    end = webdata[start:].find("<p>")
-    ids = [int(id[:id.find('\"')]) for id in webdata[start:start+end].split("ProfileView/")[1:]]
-    
-    r = db.execute("select name from Users where userId in (%s)" % ','.join('?'*len(ids)), ids).fetchall()
-    return [r[i][0] for i in range(len(r))]
+    with urllib.request.urlopen(LIVEINFO_URL) as URL:
+        liveinfo = json.load(URL)
+
+
+    result = ""
+    for room in liveinfo.get("rooms"):
+        if room.get("players"):
+            result += f"\n**{room.get('name')}**:\n"
+            players = []
+            for player in liveinfo.get("players"):
+                if player.get("room") is room.get("id"): #Note that == doesn't work here, since False == 0 is True
+                    players.append((player.get("currentscore"), player.get("name"), player.get("afk") ))
+            players = sorted(players, reverse=True)
+            for i, player in enumerate(players):
+                if i==0:
+                    if player[2]:
+                        result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC***{player[1]}***\n"
+                    else:
+                        result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC**{player[1]}**\n"
+
+                else:
+                    if player[2]:
+                        result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC_{player[1]}_\n"
+                    else:
+                        result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC{player[1]}\n"
+    players = []
+    for player in liveinfo.get("players"):
+        if player.get("status")!="room":
+            players.append((player.get('challenge'), player.get("name")))
+
+    result+="\n"
+    players=sorted(players)
+    for player in players:
+        if player[0]:
+            result+= f"**{player[1]}**: Playing challenge \"{player[0]}\"\n"
+        else:
+            result+= f"**{player[1]}**: Hanging out in the lobby\n"
+    return result
+        
 
 
 def getPlayersWhoPlayedRecently(db: sqlite3.Connection, hours=1):
@@ -1033,6 +1064,7 @@ def refresh_rankings(db: sqlite3.Connection, refresh_limit: int):
 
 if __name__ == "__main__":
     db = sqlite3.connect(r"files\cultris.db")
+    print(getPlayersOnline(db))
     # refresh_rankings(db, 100)
     # print(userComboSpread(db, 5840, days=7))
     # print(database.time_based_stats(db, 2440, days=26))

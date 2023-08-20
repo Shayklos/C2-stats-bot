@@ -16,6 +16,7 @@ requiredMatchesOPB            = data.get("requiredMatchesOPB") if data.get("requ
 timeformat                    = data.get("timeformat") if data.get("timeformat")                                       else r"%Y-%m-%dT%H:%M:%S"
 BASE_USER_URL                 = data.get("BASE_USER_URL") if data.get("BASE_USER_URL")                                 else None
 BASE_ROUNDS_URL               = data.get("BASE_ROUNDS_URL") if data.get("BASE_ROUNDS_URL")                             else None
+LIVEINFO_URL                  = data.get("LIVEINFO_URL") if data.get("LIVEINFO_URL")                                   else None
 
 if powerTableData := data.get("powerTable"):
     powerTableRange = data.get("powerTableRange")

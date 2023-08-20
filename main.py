@@ -62,3 +62,4 @@ if __name__ == "__main__":
             sleep(1)
     except Exception as e:
         log(traceback.format_exc(), file='files/log_errors.txt')
+
