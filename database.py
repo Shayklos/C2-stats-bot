@@ -366,9 +366,10 @@ def update_userlist(db: sqlite3.Connection):
         except urllib.error.HTTPError:
             # no website
             return
-        except urllib.error.URLError:
+        except: #I've seen urllib.error.URLError and http.client.RemoteDisconnected
             # website is down at the moment / client has no internet connection
             log("No connection", 'files/log_errors.txt')
+            sleep(30)
             update_userlist(db)
     
 
@@ -757,7 +758,7 @@ on userId = u
         try:
             with urllib.request.urlopen(url) as URL:
                 data = json.load(URL)
-        except urllib.error.URLError:
+        except:
             # website is down at the moment
             log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
             sleep(30)
