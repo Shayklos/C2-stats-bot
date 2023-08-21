@@ -645,6 +645,11 @@ def getNetscores(db: sqlite3.Connection, days = 7, aproximation = True):
     
 
 def getCombos(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesCombos, rawdata = False):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
+
     combos = db.execute(f"""select Rounds.userId, name, cast(sum(Rounds.maxCombo) as float)/count(Matches.roundId) as avgCombo, count(Matches.roundId) as c
                 from Matches inner join Rounds on Matches.roundId = Rounds.roundId inner join users on users.userId = rounds.userId where ruleset = 0 and start > ? group by Rounds.userId having c>{requiredMatches} order by avgCombo desc """,
                 (datetime.now(tz = timezone('UTC'))-timedelta(days=days),)).fetchall()
@@ -910,6 +915,10 @@ def getSent(db: sqlite3.Connection, days = 7):
     return [(combo[0], combo[1], f"{thousandsSeparator(combo[2])}") for combo in sent ]
 
 def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesSPM, rawdata = False):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
     spm = db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.linesSent) as float)/sum(playDuration),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
@@ -927,6 +936,10 @@ def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 def getavgOPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesOPM):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
     spm = db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.linesSent+Rounds.linesBlocked) as float)/sum(playDuration),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
@@ -940,6 +953,10 @@ def getavgOPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 def getavgOPB(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesOPB):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
     spm = db.execute(
         """select Users.userId, name, round(100*cast(sum(Rounds.linesSent+Rounds.linesBlocked) as float)/sum(blocks),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
@@ -953,6 +970,10 @@ def getavgOPB(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 def getavgBPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBPM):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
     spm = db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.blocks) as float)/sum(playDuration),1) as avgBPM, count(Rounds.roundId) as c from Rounds 
@@ -966,6 +987,10 @@ def getavgBPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 def getBlockedPercent(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
     spm = db.execute(
         """select Users.userId, name, round(100*cast(sum(Rounds.linesBlocked) as float)/sum(Rounds.linesGot),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
@@ -978,6 +1003,10 @@ def getBlockedPercent(db: sqlite3.Connection, days = 7, requiredMatches = requir
     return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm ]
 
 def getPower(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
     #normalized opm
     date_now = datetime.now(tz = timezone('UTC'))
     power = db.execute(

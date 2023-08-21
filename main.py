@@ -14,7 +14,6 @@ from sys import version
 # TODO: database backups
 # TODO: Max SPM, Max Sent
 # TODO: Command that finds a player in all leaderboards
-# TODO: Lower required matches for leaderboards when days is low
 # TODO: Delete old logging
 # TODO: FFA Notification system
 # TODO: Fix database is locked error when a round is added but not processed
