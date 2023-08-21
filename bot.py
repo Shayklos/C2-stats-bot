@@ -71,10 +71,15 @@ class Stats(discord.ui.View):
         await interaction.user.send("Something went horribly wrong. Uh oh.")
     
 
-    def disable_buttons(self, list):
+    def enable_buttons(self, list):
         for item in self.children:
             if item.label in list:
                 item.disabled = False
+
+    def disable_buttons(self, list):
+        for item in self.children:
+            if item.label in list:
+                item.disabled = True
 
 
     def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -186,6 +191,9 @@ class Stats(discord.ui.View):
     async def week_down(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction,button)
         self.days = max(1, self.days-7)
+        if self.days == 1:
+            self.disable_buttons(["Day down", "Week down"])
+        self.enable_buttons(["Day up", "Week up"])
         await self.editEmbed(interaction)
 
 
@@ -193,6 +201,9 @@ class Stats(discord.ui.View):
     async def day_down(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction,button)
         self.days = max(1, self.days-1)
+        if self.days == 1:
+            self.disable_buttons(["Day down", "Week down"])
+        self.enable_buttons(["Day up", "Week up"])
         await self.editEmbed(interaction)
 
 
@@ -200,6 +211,9 @@ class Stats(discord.ui.View):
     async def day_up(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction,button)
         self.days = min(database.dbDaysLimit, self.days+1)
+        if self.days == database.dbDaysLimit:
+            self.disable_buttons(["Day up", "Week up"])
+        self.enable_buttons(["Day down", "Week down"])
         await self.editEmbed(interaction)   
 
 
@@ -207,6 +221,9 @@ class Stats(discord.ui.View):
     async def week_up(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction,button)
         self.days = min(database.dbDaysLimit, self.days+7)
+        if self.days == database.dbDaysLimit:
+            self.disable_buttons(["Day up", "Week up"])
+        self.enable_buttons(["Day down", "Week down"])
         await self.editEmbed(interaction)
 
 
@@ -215,7 +232,7 @@ class Stats(discord.ui.View):
         self.logButton(interaction,button)
         self.state = 0
         button.disabled = True
-        self.disable_buttons(["Cheese times", "Combo spread"])
+        self.enable_buttons(["Cheese times", "Combo spread"])
 
         await self.editEmbed(interaction)
 
@@ -225,7 +242,7 @@ class Stats(discord.ui.View):
         self.logButton(interaction,button)
         self.state = 1
         button.disabled = True
-        self.disable_buttons(["Round stats", "Combo spread"])
+        self.enable_buttons(["Round stats", "Combo spread"])
 
         await self.editEmbed(interaction)
         
@@ -235,7 +252,7 @@ class Stats(discord.ui.View):
         self.logButton(interaction,button)
         self.state = 2
         button.disabled = True
-        self.disable_buttons(["Round stats", "Cheese times"])
+        self.enable_buttons(["Round stats", "Cheese times"])
 
         await self.editEmbed(interaction)
 
@@ -446,7 +463,7 @@ class Rankings(discord.ui.View):
         await interaction.user.send("Something went horribly wrong. Uh oh.")
     
 
-    def disable_buttons(self, list):
+    def enable_buttons(self, list):
         for item in self.children:
             if item.label in list:
                 item.disabled = False
@@ -547,6 +564,18 @@ class Leaderboard(discord.ui.View):
         log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
 
 
+    def enable_buttons(self, list):
+        for item in self.children:
+            if item.label in list:
+                item.disabled = False
+
+
+    def disable_buttons(self, list):
+        for item in self.children:
+            if item.label in list:
+                item.disabled = True
+
+
     def getData(self, page, stat, days, pageSize = database.embedPageSize):
         match stat:
             case 'Blocked%':
@@ -592,9 +621,13 @@ class Leaderboard(discord.ui.View):
                 title=f"Total lines sent ({days} days)"
                 
             case 'Netscores':
-                data = database.getNetscores(db, days=days)
-                page = 1 if pageSize*(page - 1) > len(data) else page
-                description=methods.getPage(page, data, pageSize = pageSize)
+                data = database.getNetscores(db, days=days) if 1 < days <= 7 else None
+                page = 1 if data and pageSize*(page - 1) > len(data) else page
+                if data:
+                    description=methods.getPage(page, data, pageSize = pageSize)
+                else:
+                    description = "Use /stats to see 1 day Netscores." if days == 1 else "Netscores data is only supported for up to a week."
+
                 title=f"Netscores ({days} days)"
 
             case 'Average best combo':
@@ -615,10 +648,14 @@ class Leaderboard(discord.ui.View):
         return description, title
 
 
-    @discord.ui.button(label="Day down", row = 0, style=discord.ButtonStyle.primary, emoji="⬇️") 
-    async def day_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="Week down", row = 0, style=discord.ButtonStyle.primary, emoji="⏬") 
+    async def week_down(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
-        self.days = max(1, self.days-1)
+        self.days = max(1, self.days-7)
+        if self.days == 1:
+            self.disable_buttons(["Day down", "Week down"])
+        self.enable_buttons(["Day up", "Week up"])
+
         description, title = self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
@@ -627,7 +664,24 @@ class Leaderboard(discord.ui.View):
                     title=title),
             view=self
             )
-        # log(f"{interaction.user.display_name} ({interaction.user.name}) in /{interaction.data['name']}: day down", 'files/log_discord.txt')
+
+
+    @discord.ui.button(label="Day down", row = 0, style=discord.ButtonStyle.primary, emoji="⬇️") 
+    async def day_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
+        self.days = max(1, self.days-1)
+        if self.days == 1:
+            self.disable_buttons(["Day down", "Week down"])
+        self.enable_buttons(["Day up", "Week up"])
+
+        description, title = self.getData(self.page, self._stat, self.days)
+        await interaction.response.edit_message(
+            embed=discord.Embed(
+                    color=0x0B3C52,
+                    description=description,
+                    title=title),
+            view=self
+            )
 
     @discord.ui.button(label="Page down", row = 1, style=discord.ButtonStyle.primary, emoji="⬅️") 
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -641,7 +695,6 @@ class Leaderboard(discord.ui.View):
                     title=title),
             view=self
             )
-        # log(f"{interaction.user.display_name} ({interaction.user.name}) in /{interaction.data['name']}: page down", 'files/log_discord.txt')
 
     @discord.ui.button(label="Page up", row = 1, style=discord.ButtonStyle.primary, emoji="➡️") 
     async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -655,12 +708,15 @@ class Leaderboard(discord.ui.View):
                     title=title),
             view=self
             )
-        # log(f"{interaction.user.display_name} ({interaction.user.name}) in /{interaction.data['name']}: page up", 'files/log_discord.txt')
 
     @discord.ui.button(label="Day up", row = 0, style=discord.ButtonStyle.primary, emoji="⬆️") 
     async def day_up(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
         self.days = min(database.dbDaysLimit, self.days+1)
+        if self.days == database.dbDaysLimit:
+            self.disable_buttons(["Day up", "Week up"])
+        self.enable_buttons(["Day down", "Week down"])
+
         description, title = self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
@@ -669,7 +725,25 @@ class Leaderboard(discord.ui.View):
                     title=title),
             view=self
             )
-        # log(f"{interaction.user.display_name} ({interaction.user.name}) in /{interaction.data['name']}: day up", 'files/log_discord.txt')
+  
+    @discord.ui.button(label="Week up", row = 0, style=discord.ButtonStyle.primary, emoji="⏫") 
+    async def week_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
+        self.days = min(database.dbDaysLimit, self.days+7)
+        if self.days == database.dbDaysLimit:
+            self.disable_buttons(["Day up", "Week up"])
+        self.enable_buttons(["Day down", "Week down"])
+
+        description, title = self.getData(self.page, self._stat, self.days)
+        await interaction.response.edit_message(
+            embed=discord.Embed(
+                    color=0x0B3C52,
+                    description=description,
+                    title=title),
+            view=self
+            )
+        
+
 
 @tree.command(description="Display a leaderboard of a selected stat."
               ,guild=guild
@@ -800,12 +874,15 @@ async def help_autocomplete(interaction: discord.Interaction, current: str):
 
 class ChallengeButton(discord.ui.Button):
     async def callback(self, interaction):
+        self.view: Challenges
+
         self.view.challenge = self.label
+        log(f"{self.view.interactionUser.display_name} ({self.view.interactionUser.name}) on {self.view.command} pressed button {self.label}", "files/log_discord.txt")
         await interaction.response.edit_message(embed = self.view.createEmbed(interaction), view = self.view)
 
 class Challenges(discord.ui.View):
 
-    def __init__(self, author, userId, challenge):
+    def __init__(self, author: discord.User, userId: int, challenge: str):
         super().__init__(timeout=120)
         self.interactionUser = author
         self.userId = userId
@@ -843,7 +920,7 @@ class Challenges(discord.ui.View):
         await interaction.user.send("Something went horribly wrong. Uh oh.")
     
 
-    def disable_buttons(self, list):
+    def enable_buttons(self, list):
         for item in self.children:
             if item.label in list:
                 item.disabled = False
@@ -869,8 +946,8 @@ class Challenges(discord.ui.View):
 
             case "Survivor":
                 data = challenge.get("ol-survivor")
-                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}")
-                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
 
             case "Swiss cheese":
                 data = challenge.get("ol-cheese")
@@ -880,29 +957,29 @@ class Challenges(discord.ui.View):
             case "49.6 µFortnight":
                 data = challenge.get("ol-send")
                 embed.add_field(name = "Lines sent", value = data.get("linesSent"))
-                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
 
             case "Ten":
                 data = challenge.get("ol-ten")
                 embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
-                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
 
             case "James Clewett's":
                 data = challenge.get("ol-clewett")
                 embed.add_field(name = "Tetrises", value = data.get("tetrii"))
-                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}")
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}s")
 
             case "Quickstart":
                 data = challenge.get("ol-qs")
                 embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
-                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
 
             case "Shi Tai Ye":
                 data = challenge.get("ol-tgm")
                 embed.add_field(name = "Lines cleared", value = data.get("linesCleared"))
-                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}")
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}s")
 
-        embed.description = data.get("date")
+        embed.description = f"PB obtained on {data.get('date')}"
         embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{self.playerData.get('gravatarHash')}?d=https://i.imgur.com/Gms07El.png")
 
         

@@ -10,20 +10,17 @@ from sys import version
 # TODO: Go through all functions and place try: except:s appropiately
 # TODO: (in database.py) check if any queries break when userId or similar is null
 # TODO: Give message when a user DM's the bot   
-# TODO: Look into /leaderboard rankings fast=False
 # TODO: Deal with website being down. Test it
 # TODO: database backups
 # TODO: Max SPM, Max Sent
-# TODO: Function that finds a player in all leaderboards
+# TODO: Command that finds a player in all leaderboards
 # TODO: Lower required matches for leaderboards when days is low
 # TODO: Delete old logging
-# TODO: Update leaderboard every now and then
 # TODO: FFA Notification system
-# TODO: Week up/down in /stats /leaderboard
 # TODO: Fix database is locked error when a round is added but not processed
-# TODO: Disable week/day buttons when they reached limit
-# TODO: /leaderboard Netscores breaks when days>7 with buttons
 # TODO: Safe way of closing the bot
+# TODO: in /stats : toggle button between PC view (aligned embed) and Phone embed (disaligned embed but readable in phone)
+# TODO: /rounds command for a player rounds
 
 def main()->None:    
     if bot.developerMode:
