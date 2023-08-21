@@ -110,5 +110,24 @@ def check_rankings(db):
     with open("files/settings.json", "w") as file:
         json.dump(data,file)
 
+def create_achievements_file(url):
+    import urllib.request, csv
+    with urllib.request.urlopen(url) as URL:
+        data = json.load(URL)
+
+    with open('files/extra/achievements.csv', 'w', newline='', encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile, delimiter=',',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+        for element in data:
+            writer.writerow(
+                (data.get(element).get("title"), 
+                 data.get(element).get("description"), 
+                 data.get(element).get("points"),
+                #  data.get(element).get("isPublic"),
+                #  data.get(element).get("count"),                 
+                 ))
+
+
 if __name__ == '__main__':
-    check_netscores(1)
+    pass
