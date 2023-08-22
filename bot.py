@@ -7,12 +7,10 @@ from dotenv import load_dotenv
 import sqlite3
 
 developerMode = False
+
 load_dotenv()
 TOKEN = getenv('DISCORD_TOKEN')
 GUILD_ID = getenv('DISCORD_GUILD_ID')
-
-intents = discord.Intents.default()
-intents.message_content = True
 
 class CultrisBot(commands.Bot):
     def __init__(self, intents: discord.Intents):
@@ -20,17 +18,23 @@ class CultrisBot(commands.Bot):
 
     async def setup_hook(self):
         
-        for command in ["".join(('commands.', command[:-3])) for command in listdir('commands') if command != '__pycache__']:
+        #Loads all commands in 'commands' folder
+        for command in ["".join(('commands.', command[:-3])) for command in listdir('commands') if command[-3:] == '.py']:
             await self.load_extension(command)
+            print(f"Loaded /{command[9:]} command.")
 
         if developerMode:
+            #Makes me have to wait less in my testing guild
             self.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=None)
         self.db = sqlite3.connect(r"files/cultris.db")
 
-        print("Ready")
+        print("Bot is ready!")
 
+
+intents = discord.Intents.default()
+intents.message_content = True
 
 cultrisBot = CultrisBot(intents = intents)
 
