@@ -20,6 +20,8 @@ from sys import version
 # TODO: Safe way of closing the bot
 # TODO: in /stats : toggle button between PC view (aligned embed) and Phone embed (disaligned embed but readable in phone)
 # TODO: /rounds command for a player rounds
+# TODO BUG: in /online : if all players in a room are afk, these players wont be displayed
+
 
 def main()->None:    
     if bot.developerMode:
@@ -53,8 +55,8 @@ if __name__ == "__main__":
         # db = sqlite3.connect(r"files\cultris.db", check_same_thread=False)
         # add_recent_profile_data(db,7,True,True)
         
-        asyncio.run(bot.client.start(bot.TOKEN))
-        while True:
+        asyncio.run(bot.cultrisBot.start(bot.TOKEN))
+        while 1:
             sleep(1)
     except Exception as e:
         log(traceback.format_exc(), file='files/log_errors.txt')

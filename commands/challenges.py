@@ -1,0 +1,180 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+from discord.ui.item import Item
+from typing import Any
+import sys, traceback
+sys.path.append('../c2-stats-bot')
+from logger import *
+import database, methods, urllib.request, json
+
+
+class ChallengeButton(discord.ui.Button):
+    async def callback(self, interaction):
+        self.view: ChallengesView
+
+        self.view.challenge = self.label
+        log(f"{self.view.interactionUser.display_name} ({self.view.interactionUser.name}) on {self.view.command} pressed button {self.label}", "files/log_discord.txt")
+        await interaction.response.edit_message(embed = self.view.createEmbed(interaction), view = self.view)
+
+
+class ChallengesView(discord.ui.View):
+
+    def __init__(self, bot, author: discord.User, userId: int, challenge: str):
+        super().__init__(timeout=120)
+        self.bot = bot
+        self.interactionUser = author
+        self.userId = userId
+        self.challenge = challenge
+        url = database.BASE_USER_URL+str(userId)
+        with urllib.request.urlopen(url) as URL:
+            self.playerData = json.load(URL)
+        self.command = '/challenges'
+        for i, label in enumerate(
+            ['Maserati', 'Survivor', 'Swiss cheese', '49.6 µFortnight', 'Ten', "James Clewett's", 'Quickstart', 'Shi Tai Ye']
+            ):
+            self.add_item(
+                ChallengeButton(label = label, 
+                                row = i//4, 
+                                style=discord.ButtonStyle.primary))
+
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.style = discord.ButtonStyle.grey
+            item.disabled = True
+        await self.message.edit(view=self)
+
+    
+    async def interaction_check(self, interaction: discord.Interaction):
+        #checks if user who used the button is the same who called the command
+        if interaction.user == self.interactionUser:
+            return True
+        else:
+            await interaction.user.send("Only the user who called the command can use the buttons.")
+    
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
+        print(error)
+        await interaction.user.send("Something went horribly wrong. Uh oh.")
+    
+
+    def enable_buttons(self, list):
+        for item in self.children:
+            if item.label in list:
+                item.disabled = False
+
+
+    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
+
+
+    def createEmbed(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+                    title=f"{self.challenge} of {self.playerData.get('name')}",
+                    color=0x0B3C52,
+                    url=f"https://gewaltig.net/ProfileView/{self.userId}",
+                )
+
+        challenge = self.playerData.get("challenges")
+        match self.challenge:
+            case "Maserati":
+                data = challenge.get("ol-maserati")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "Blocks", value = data.get("blocks"))
+
+            case "Survivor":
+                data = challenge.get("ol-survivor")
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
+
+            case "Swiss cheese":
+                data = challenge.get("ol-cheese")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "Blocks", value = data.get("blocks"))
+
+            case "49.6 µFortnight":
+                data = challenge.get("ol-send")
+                embed.add_field(name = "Lines sent", value = data.get("linesSent"))
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
+
+            case "Ten":
+                data = challenge.get("ol-ten")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
+
+            case "James Clewett's":
+                data = challenge.get("ol-clewett")
+                embed.add_field(name = "Tetrises", value = data.get("tetrii"))
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}s")
+
+            case "Quickstart":
+                data = challenge.get("ol-qs")
+                embed.add_field(name = "Time", value = f"{round(data.get('playDuration'), 2)}s")
+                embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
+
+            case "Shi Tai Ye":
+                data = challenge.get("ol-tgm")
+                embed.add_field(name = "Lines cleared", value = data.get("linesCleared"))
+                embed.add_field(name = "Time", value = f"{data.get('playDuration') // 60 :.0f}m {data.get('playDuration')%60:.2f}s")
+
+        embed.description = f"PB obtained on {data.get('date')}"
+        embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{self.playerData.get('gravatarHash')}?d=https://i.imgur.com/Gms07El.png")
+
+        
+        return embed
+
+
+class Challenges(commands.Cog):
+    def __init__(self, bot):
+        super().__init__()
+        self.bot = bot 
+    
+
+    @app_commands.command(description="Returns stats of the singleplayer challenges.")
+    @app_commands.describe(challenge='By default Maserati (40L Sprint).')
+    async def challenges(self, interaction: discord.Interaction, username: str = None, challenge: str = 'Maserati'):
+        try:
+            correct = await methods.checks(interaction)
+            if not correct:
+                return
+            
+            if not username:
+                username = interaction.user.display_name
+
+            ratio, userId, user = database.fuzzysearch(self.bot.db, username.lower())
+            msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
+    
+            view = ChallengesView(self.bot, interaction.user, userId, challenge)
+
+            await interaction.response.send_message(embed = view.createEmbed(challenge), view=view)
+            view.message = await interaction.original_response()
+            
+
+        except Exception as e:
+            print(e)
+            log(traceback.format_exc())
+
+
+    @challenges.autocomplete('challenge')
+    async def challenges_autocomplete(self, interaction: discord.Interaction, current: str):
+
+        challenges = [
+            'Maserati',
+            'Survivor',
+            'Swiss cheese',
+            '49.6 µFortnight',
+            'Ten',
+            "James Clewett's",
+            'Quickstart',
+            'Shi Tai Ye',
+            
+        ]
+        return [
+            app_commands.Choice(name=challenge, value=challenge)
+            for challenge in challenges if current.lower() in challenge.lower()
+        ]
+    
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Challenges(bot))

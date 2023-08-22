@@ -8,8 +8,11 @@ files/cultris - Copy.db
 files/fullCultris.db
 test.py
 .env
-leaderboard.py
+leaderboardcalc.py
 *.pyc
 *.txt
 files/settings.json
 *.png
+files/cultrisTest.db
+files/elo.db
+files/extra/achievements.csv
