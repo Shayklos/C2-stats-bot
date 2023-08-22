@@ -1,6 +1,6 @@
 {
     "locked": false,
-    "NetscoreTime": 1692445747,
+    "NetscoreTime": 1692707974,
     "RefreshRankingsTime": 1692376635,
     "admins": [
         "yoozenji",
@@ -15,6 +15,7 @@
     "LIVEINFO_URL": "xxx",
     "dbDaysLimit": 30,
     "embedPageSize": 20,
+    "botTimeout": 120,
     "requiredMatchesCombos": 15,
     "requiredMatchesSPM": 40,
     "requiredMatchesBPM": 40,

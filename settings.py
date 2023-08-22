@@ -5,7 +5,8 @@ with open("files/settings.json", "r") as file:
 
 
 dbDaysLimit                   = data.get("dbDaysLimit") if data.get("dbDaysLimit")                                     else 30
-embedPageSize                 = data.get("embedPageSize") if data.get("embedPageSize")                                 else 20           
+embedPageSize                 = data.get("embedPageSize") if data.get("embedPageSize")                                 else 20  
+botTimeout                    = data.get("botTimeout") if data.get("botTimeout")                                       else 120  
 admins                        = data.get("admins") if data.get("admins")                                               else []
 requiredMatchesCombos         = data.get("requiredMatchesCombos") if data.get("requiredMatchesCombos")                 else 15
 requiredMatchesSPM            = data.get("requiredMatchesSPM") if data.get("requiredMatchesSPM")                       else 40

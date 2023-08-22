@@ -7,46 +7,16 @@ import sys
 sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
+from CultrisView import CultrisView
 
-
-class RankingsView(discord.ui.View):
+class RankingsView(CultrisView):
 
     def __init__(self, bot, author, page):
-        super().__init__(timeout=120)
-        self.bot = bot
+        super().__init__(bot=bot, author=author)
+        self.command = '/rankings'
+        
         self.interactionUser = author
         self.page = page
-        self.command = '/rankings'
-
-    async def on_timeout(self):
-        for item in self.children:
-            item.style = discord.ButtonStyle.grey
-            item.disabled = True
-        await self.message.edit(view=self)
-
-    
-    async def interaction_check(self, interaction: discord.Interaction):
-        #checks if user who used the button is the same who called the command
-        if interaction.user == self.interactionUser:
-            return True
-        else:
-            await interaction.user.send("Only the user who called the command can use the buttons.")
-    
-
-    async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
-        print(error)
-        await interaction.user.send("Something went horribly wrong. Uh oh.")
-    
-
-    def enable_buttons(self, list):
-        for item in self.children:
-            if item.label in list:
-                item.disabled = False
-
-
-    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
-        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
-
 
 
     def createEmbed(self, page):
@@ -90,9 +60,8 @@ class Rankings(commands.Cog):
         super().__init__()
         self.bot = bot 
 
-    @app_commands.command(description="Displays current leaderboard. Doesn't work too well... the positions of may not be accurate.")
+    @app_commands.command(description="Displays an approximation of the current leaderboard. It may not be accurate.")
     @app_commands.describe(page = "The page you want to see (by default 1). Negative page numbers are not allowed here.")
-
     async def rankings(self, interaction: discord.Interaction, page: app_commands.Range[int, 1] = 1):
         correct = await methods.checks(interaction)
         if not correct:

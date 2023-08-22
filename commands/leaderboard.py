@@ -7,54 +7,19 @@ import sys
 sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
+from CultrisView import CultrisView
 
 
-class LeaderboardView(discord.ui.View):
+class LeaderboardView(CultrisView):
 
     def __init__(self, bot, author, stat, days, page):
-        super().__init__(timeout=120)
-        self.bot = bot
+        super().__init__(bot=bot, author=author)
+        self.command = '/leaderboard'
+        
         self.interactionUser = author
         self._stat = stat
         self.page = page
         self.days = days
-        self.command = '/leaderboard'
-
-    async def on_timeout(self):
-        print("timeout")
-        for item in self.children:
-            item.style = discord.ButtonStyle.grey
-            item.disabled = True
-        await self.message.edit(view=self)
-
-
-    async def interaction_check(self, interaction: discord.Interaction):
-        #checks if user who used the button is the same who called the command
-        if interaction.user == self.interactionUser:
-            return True
-        else:
-            await interaction.user.send("Only the user who called the command can use the buttons.")
-    
-
-    async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
-        print(error)
-        await interaction.user.send("Something went horribly wrong. Uh oh.")
-
-
-    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
-        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
-
-
-    def enable_buttons(self, list):
-        for item in self.children:
-            if item.label in list:
-                item.disabled = False
-
-
-    def disable_buttons(self, list):
-        for item in self.children:
-            if item.label in list:
-                item.disabled = True
 
 
     def getData(self, page, stat, days, pageSize = database.embedPageSize):

@@ -1,4 +1,4 @@
-import discord
+import discord, urllib.request, json
 from discord import app_commands
 from discord.ext import commands
 from discord.ui.item import Item
@@ -6,8 +6,11 @@ from typing import Any
 import sys, traceback
 sys.path.append('../c2-stats-bot')
 from logger import *
-import database, methods, urllib.request, json
+from CultrisView import CultrisView
+import database, methods
 
+
+CHALLENGES = ['Maserati', 'Survivor', 'Swiss cheese', '49.6 µFortnight', 'Ten', "James Clewett's", 'Quickstart', 'Shi Tai Ye']
 
 class ChallengeButton(discord.ui.Button):
     async def callback(self, interaction):
@@ -18,55 +21,23 @@ class ChallengeButton(discord.ui.Button):
         await interaction.response.edit_message(embed = self.view.createEmbed(interaction), view = self.view)
 
 
-class ChallengesView(discord.ui.View):
+class ChallengesView(CultrisView):
 
     def __init__(self, bot, author: discord.User, userId: int, challenge: str):
-        super().__init__(timeout=120)
-        self.bot = bot
+        super().__init__(bot=bot, author=author)
+        self.command = '/challenges'
+
         self.interactionUser = author
         self.userId = userId
         self.challenge = challenge
-        url = database.BASE_USER_URL+str(userId)
-        with urllib.request.urlopen(url) as URL:
+
+        with urllib.request.urlopen(database.BASE_USER_URL+str(userId)) as URL:
             self.playerData = json.load(URL)
-        self.command = '/challenges'
-        for i, label in enumerate(
-            ['Maserati', 'Survivor', 'Swiss cheese', '49.6 µFortnight', 'Ten', "James Clewett's", 'Quickstart', 'Shi Tai Ye']
-            ):
+        for i, label in enumerate(CHALLENGES):
             self.add_item(
                 ChallengeButton(label = label, 
-                                row = i//4, 
+                                row = i//4, #Half of the buttons will be on the first row, the other half will be on the second row
                                 style=discord.ButtonStyle.primary))
-
-
-    async def on_timeout(self):
-        for item in self.children:
-            item.style = discord.ButtonStyle.grey
-            item.disabled = True
-        await self.message.edit(view=self)
-
-    
-    async def interaction_check(self, interaction: discord.Interaction):
-        #checks if user who used the button is the same who called the command
-        if interaction.user == self.interactionUser:
-            return True
-        else:
-            await interaction.user.send("Only the user who called the command can use the buttons.")
-    
-
-    async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
-        print(error)
-        await interaction.user.send("Something went horribly wrong. Uh oh.")
-    
-
-    def enable_buttons(self, list):
-        for item in self.children:
-            if item.label in list:
-                item.disabled = False
-
-
-    def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
-        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
 
 
     def createEmbed(self, interaction: discord.Interaction):
@@ -157,22 +128,10 @@ class Challenges(commands.Cog):
 
 
     @challenges.autocomplete('challenge')
-    async def challenges_autocomplete(self, interaction: discord.Interaction, current: str):
-
-        challenges = [
-            'Maserati',
-            'Survivor',
-            'Swiss cheese',
-            '49.6 µFortnight',
-            'Ten',
-            "James Clewett's",
-            'Quickstart',
-            'Shi Tai Ye',
-            
-        ]
+    async def challenges_autocomplete(self, interaction: discord.Interaction, current: str):      
         return [
             app_commands.Choice(name=challenge, value=challenge)
-            for challenge in challenges if current.lower() in challenge.lower()
+            for challenge in CHALLENGES if current.lower() in challenge.lower()
         ]
     
 
