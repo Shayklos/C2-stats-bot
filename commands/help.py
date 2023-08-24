@@ -47,10 +47,10 @@ roomsize: value
 9: 56.306414280463
 ```
 with the following formula:
-`(10/3) * OPM/roomsize_value`
+`30 * OPM/roomsize_value`
 
 For other roomsizes, the following formula is used:
-`10 * OPM/(roomsize + 9.8)`
+`100 * OPM/(roomsize + 9.8)`
 
 Power shown in `/stats` and `/leaderboard Power` is the average achieved in the range selected, not counting roomsize = 1."""
 }
