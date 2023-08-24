@@ -6,22 +6,6 @@ import bot, traceback
 import multiprocessing
 from sys import version
 
-# TODO: Really should transform code to async at some point
-# TODO: Go through all functions and place try: except:s appropiately
-# TODO: (in database.py) check if any queries break when userId or similar is null
-# TODO: Give message when a user DM's the bot   
-# TODO: Deal with website being down. Test it
-# TODO: database backups
-# TODO: Max SPM, Max Sent
-# TODO: Command that finds a player in all leaderboards
-# TODO: Delete old logging
-# TODO: FFA Notification system
-# TODO: Fix database is locked error when a round is added but not processed
-# TODO: Safe way of closing the bot
-# TODO: in /stats : toggle button between PC view (aligned embed) and Phone embed (disaligned embed but readable in phone)
-# TODO: /rounds command for a player rounds
-# TODO BUG: in /online : if all players in a room are afk, these players wont be displayed
-
 
 def main()->None:    
     if bot.developerMode:
