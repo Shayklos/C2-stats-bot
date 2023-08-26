@@ -86,7 +86,11 @@ def check_netscores(db):
     with open("files/settings.json", "w") as file:
         json.dump(data,file)
 
-    database.add_recent_profile_data(db,7,True,True)
+    try:
+        database.add_recent_profile_data(db,7,True,True)
+    except:
+        log("add_recent_profile_data failed!", "files/log_errors.txt")
+        
     data["locked"] = False
     with open("files/settings.json", "w") as file:
         json.dump(data,file)

@@ -282,7 +282,7 @@ def add_recent_profile_data(db: sqlite3.Connection, days=7, add_to_netscores=Fal
     """
     date_now = datetime.now(tz = timezone('UTC'))
     res = db.execute(
-        "select distinct(userId) from Rounds Inner Join Matches on Rounds.roundId = Matches.roundId where start > ? and userId is not null", 
+        "select distinct(userId) from Rounds Inner Join Matches on Rounds.roundId = Matches.roundId where isOfficial and ruleset = 0 and start > ? and userId is not null", 
         (date_now-timedelta(days=days),))
     
     # with ThreadPoolExecutor(max_workers=1) as executor:
