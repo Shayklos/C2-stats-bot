@@ -33,8 +33,7 @@ Feel free to suggest additions/report bugs.""",
 OPB stands for Output per block. The way to calculate is (lineSent + linesBlocked)/blocksPlaced.""",
 
                                         'Power' : 
-"""The amount of lines a player sends depends on the amount of players alive. Therefore, players will send more lines in bigger rooms. 'Power' is a stat that tries to give a player a score on their performance regardless of the size of the rooms they played in. The way this was done is by calculate the average OPM in the last 10 years for every roomsize.
-For roomsizes between 2 and 9 Power in a round is calculated using the following table
+"""The amount of lines a player sends depends on the amount of players alive. Therefore, players will send more lines in bigger rooms. 'Power-2' is a stat that tries to give a player a score on their performance regardless of the size of the rooms they played in. The way this is calculated is using the following table, which represents the average OPM in the last 10 years for every roomsize:
 ```
 roomsize: value
 2: 37.8883647435868, 
@@ -51,8 +50,30 @@ with the following formula:
 
 For other roomsizes, the following formula is used:
 `100 * OPM/(roomsize + 9.8)`
+The advantage of Power compared to Power-2 is that the resulting number can be interpreted as roughly a percentage, where only the best players have around 100 Power, and most players are in the 40-60 Power range.
+Power shown in `/stats` and `/leaderboard Power` is the average achieved in the range selected, not counting roomsize = 1.""",
 
-Power shown in `/stats` and `/leaderboard Power` is the average achieved in the range selected, not counting roomsize = 1."""
+'Power-2' :
+"""The amount of lines a player sends depends on the amount of players alive. Therefore, players will send more lines in bigger rooms. 'Power-2' is a stat that tries to give a player a score on their performance regardless of the size of the rooms they played in. The way this is calculated is using the following table, which represents the average OPM in the last 10 years for every roomsize:
+```
+roomsize: value
+2: 37.8883647435868, 
+3: 35.4831455255647, 
+4: 40.1465889629567, 
+5: 44.2602184213111, 
+6: 48.575338292518, 
+7: 50.649550305342, 
+8: 51.9969119509592, 
+9: 56.306414280463
+```
+with the following formula:
+`37.8883647435868 * OPM/roomsize_value`
+
+For other roomsizes, the following formula is used:
+`37.8883647435868 * OPM/(3*roomsize + 29.4)`
+
+The advantage of Power-2 compared to Power is that the resulting number can be interpreted as "average OPM if all matches were played in 1v1".
+Power-2 shown in `/stats` and `/leaderboard Power-2` is the average achieved in the range selected, not counting roomsize = 1."""
 }
 
 ABOUTS = list(HELP) #keys of the dictionary       

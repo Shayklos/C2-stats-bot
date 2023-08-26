@@ -507,7 +507,7 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
                         where start > ? and userId = ? and playDuration and ruleset = 0""", (date, userId))
     db.row_factory = None
 
-    played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = 0
+    played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = powerv2 = 0
     
     for round in rounds:
         played += 1
@@ -528,9 +528,10 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
         got         += round["linesGot"]
         if powerTable.get(round["roomsize"]):
             power +=  1800*(round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*powerTable.get(round["roomsize"]))
+            powerv2 += powerTable.get(2) * 60 * (round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*powerTable.get(round["roomsize"]))
         else:
             power +=  600*(round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*(round["roomsize"] + 9.8))
-        
+            powerv2 += powerTable.get(2) * 60 * (round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*(3*round["roomsize"] + 29.4))
     
     playedTime /= 60 #minutes 
 
@@ -548,7 +549,8 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
             "played" : played,
             "bestCombo" : bestCombo,
             "bestBPM" : bestBPM,
-            "power": power/played
+            "power": power/played,
+            "powerv2": powerv2/played
         }
     except ZeroDivisionError: #Player has barely played
         return{
@@ -563,6 +565,8 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
             "played" : 0,
             "bestCombo" : 0,
             "bestBPM" : 0,
+            "power": 0,
+            "powerv2": 0
         }
 
 

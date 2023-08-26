@@ -56,7 +56,7 @@ class StatsView(CultrisView):
                 embed.add_field(name="Max BPM", value=round(timeStats["bestBPM"], 1), inline=True)
                 embed.add_field(name="Avg BPM", value=round(timeStats["avgBPM"], 1), inline=True)
                 embed.add_field(name="Power", value=round(timeStats['power'], 1), inline=True)
-            
+                embed.add_field(name="Power-2", value=round(timeStats['powerv2'], 1), inline=True)
             else:
                 embed.add_field(name="Minutes played", value="0", inline=True)
             
