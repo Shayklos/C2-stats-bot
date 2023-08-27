@@ -8,12 +8,6 @@ from time import sleep
 from methods import *
 
 
-    
-
-def oldest_round(db: sqlite3.Connection):
-    res = db.execute("select min(roundId) from Matches")
-    return res.fetchone()[0]
-
 
 def newest_round(db: sqlite3.Connection):
     res = db.execute("select max(roundId) from Matches")
@@ -1025,6 +1019,25 @@ def getPower(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatches
     
     return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in power ]
 
+
+def getPower2(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
+    #normalized opm
+    date_now = datetime.now(tz = timezone('UTC'))
+    power = db.execute(
+        """select users.userId, name, avg(powerStat) as power, count(roundId) as playedmatches from (
+            with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
+            select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
+            ) t
+            join users on users.userid= t.userid
+            group by users.userId having playedmatches>? order by power desc
+        """,
+        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+    
+    return [(combo[0], combo[1], f"**{37.8883647435868/30*combo[2]:.1f}** in {combo[3]} matches" ) for combo in power ]
 
 def userCheeseTimes(db: sqlite3.Connection, userId, days=7, limit = 20):
     date_now = datetime.now(tz = timezone('UTC'))
