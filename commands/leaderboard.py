@@ -22,52 +22,52 @@ class LeaderboardView(CultrisView):
         self.days = days
 
 
-    def getData(self, page, stat, days, pageSize = database.embedPageSize):
+    async def getData(self, page, stat, days, pageSize = database.embedPageSize):
         match stat:
             case 'Blocked%':
-                data = database.getBlockedPercent(self.bot.db, days=days)
+                data = await database.getBlockedPercent(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Average percentage of blocked lines ({days} days)"
 
             case 'Average OPB':
-                data = database.getavgOPB(self.bot.db, days=days)
+                data = await database.getavgOPB(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Average Output per block ({days} days)"
 
             case 'Average OPM':
-                data = database.getavgOPM(self.bot.db, days=days)
+                data = await database.getavgOPM(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Average Output per minute ({days} days)"
 
             case 'Average BPM':
-                data = database.getavgBPM(self.bot.db, days=days)
+                data = await database.getavgBPM(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Average Blocks per minute ({days} days)"
 
             case 'Average SPM':
-                data = database.getavgSPM(self.bot.db, days=days)
+                data = await database.getavgSPM(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Average Sent per minute ({days} days)"
 
             case 'Time played':
-                data = database.getTimePlayed(self.bot.db, days=days)
+                data = await database.getTimePlayed(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize, isTime = True)
                 title=f"Most active players ({days} days)" if page > 0 else f"Least active players ({days} days)"
 
             case 'Sent lines':
-                data = database.getSent(self.bot.db, days=days)
+                data = await database.getSent(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Total lines sent ({days} days)"
                 
             case 'Netscores':
-                data = database.getNetscores(self.bot.db, days=days) if 1 < days <= 7 else None
+                data = await database.getNetscores(self.bot.db, days=days) if 1 < days <= 7 else None
                 page = 1 if data and pageSize*(page - 1) > len(data) else page
                 if data:
                     description=methods.getPage(page, data, pageSize = pageSize)
@@ -77,19 +77,19 @@ class LeaderboardView(CultrisView):
                 title=f"Netscores ({days} days)"
 
             case 'Average best combo':
-                data = database.getCombos(self.bot.db, days=days)
+                data = await database.getCombos(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Average best combo ({days} days)"
 
             case 'Power':
-                data = database.getPower(self.bot.db, days=days)
+                data = await database.getPower(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Power ({days} days)"
             
             case 'Power-2':
-                data = database.getPower2(self.bot.db, days=days)
+                data = await database.getPower2(self.bot.db, days=days)
                 page = 1 if pageSize*(page - 1) > len(data) else page
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Power-2 ({days} days)"
@@ -108,7 +108,7 @@ class LeaderboardView(CultrisView):
             self.disable_buttons(["Day down", "Week down"])
         self.enable_buttons(["Day up", "Week up"])
 
-        description, title = self.getData(self.page, self._stat, self.days)
+        description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
                     color=0x0B3C52,
@@ -126,7 +126,7 @@ class LeaderboardView(CultrisView):
             self.disable_buttons(["Day down", "Week down"])
         self.enable_buttons(["Day up", "Week up"])
 
-        description, title = self.getData(self.page, self._stat, self.days)
+        description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
                     color=0x0B3C52,
@@ -139,7 +139,7 @@ class LeaderboardView(CultrisView):
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
         self.page = -1 if self.page == 1 else self.page - 1
-        description, title = self.getData(self.page, self._stat, self.days)
+        description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
                     color=0x0B3C52,
@@ -152,7 +152,7 @@ class LeaderboardView(CultrisView):
     async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
         self.page = 1 if self.page == -1 else self.page + 1
-        description, title = self.getData(self.page, self._stat, self.days)
+        description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
                     color=0x0B3C52,
@@ -169,7 +169,7 @@ class LeaderboardView(CultrisView):
             self.disable_buttons(["Day up", "Week up"])
         self.enable_buttons(["Day down", "Week down"])
 
-        description, title = self.getData(self.page, self._stat, self.days)
+        description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
                     color=0x0B3C52,
@@ -186,7 +186,7 @@ class LeaderboardView(CultrisView):
             self.disable_buttons(["Day up", "Week up"])
         self.enable_buttons(["Day down", "Week down"])
 
-        description, title = self.getData(self.page, self._stat, self.days)
+        description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
                     color=0x0B3C52,
@@ -215,7 +215,7 @@ class Leaderboard(commands.Cog):
         view = LeaderboardView(self.bot, interaction.user, stat, days, page)
 
         #Contents of message
-        description, title = view.getData(page, stat, days)
+        description, title = await view.getData(page, stat, days)
         if not description:
             await interaction.response.send_message("Did you choose a stat?", ephemeral=True)
             return

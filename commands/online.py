@@ -18,7 +18,7 @@ class Online(commands.Cog):
         correct = await methods.checks(interaction)
         if not correct:
             return
-        players = database.getPlayersOnline(self.bot.db)
+        players = database.getPlayersOnline()
 
         embed = discord.Embed(
                 color=0x0B3C52,
@@ -28,7 +28,7 @@ class Online(commands.Cog):
         
         msg = ""
         if not interaction.guild and (developerMode or interaction.user.name in database.admins):        
-            extradata = database.getPlayersWhoPlayedRecently(self.bot.db)
+            extradata = await database.getPlayersWhoPlayedRecently(self.bot.db)
             msg = "Players who played in the last hour: "
             for player in extradata.get('players'):
                 msg += f"**{player[0]}**, "

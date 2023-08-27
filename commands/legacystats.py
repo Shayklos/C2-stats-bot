@@ -21,7 +21,7 @@ class LegacyStats(commands.Cog):
         
         if not username:
             username = interaction.user.display_name
-        ratio, userId, user = database.fuzzysearch(self.bot.db, username) #ej (80, 5840, Shay)
+        ratio, userId, user = await database.fuzzysearch(self.bot.db, username) #ex (80, 5840, Shay)
 
         msg = None
         if ratio != 100:
@@ -29,7 +29,7 @@ class LegacyStats(commands.Cog):
             
         
         
-        player = database.player_stats(self.bot.db, userId)
+        player = await database.player_stats(self.bot.db, userId)
         # print(player)
         # print(timeStats)
         embed = discord.Embed(

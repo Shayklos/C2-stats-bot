@@ -113,7 +113,7 @@ class Challenges(commands.Cog):
             if not username:
                 username = interaction.user.display_name
 
-            ratio, userId, user = database.fuzzysearch(self.bot.db, username.lower())
+            ratio, userId, user = await database.fuzzysearch(self.bot.db, username.lower())
             msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
     
             view = ChallengesView(self.bot, interaction.user, userId, challenge)

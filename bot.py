@@ -4,7 +4,7 @@ from discord.ext import commands
 from os import listdir, getenv
 from dotenv import load_dotenv
 
-import sqlite3
+import aiosqlite
 
 developerMode = False
 
@@ -28,7 +28,7 @@ class CultrisBot(commands.Bot):
             self.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=None)
-        self.db = sqlite3.connect(r"files/cultris.db")
+        self.db = await aiosqlite.connect(r"files/cultris.db")
 
         print("Bot is ready!")
 

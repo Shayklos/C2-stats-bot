@@ -19,11 +19,11 @@ class RankingsView(CultrisView):
         self.page = page
 
 
-    def createEmbed(self, page):
+    async def createEmbed(self, page):
         pageSize = 20 
         start = pageSize * (page - 1) + 1
         end = start + pageSize -1
-        data = database.getRankings(self.bot.db, start, end)
+        data = await database.getRankings(self.bot.db, start, end)
         description = ""
         for element in data:
             description += f"{start}. [{element[1]}](https://gewaltig.net/ProfileView/{element[0]}) {element[2]}\n"
@@ -41,7 +41,7 @@ class RankingsView(CultrisView):
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction,button)
         self.page = max(1, self.page-1)
-        embed = self.createEmbed(self.page)
+        embed = await self.createEmbed(self.page)
         await interaction.response.edit_message(embed=embed, view = self)
 
 
@@ -50,7 +50,7 @@ class RankingsView(CultrisView):
     async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction,button)
         self.page +=1
-        embed = self.createEmbed(self.page)
+        embed = await self.createEmbed(self.page)
         await interaction.response.edit_message(embed=embed, view = self)
 
 
@@ -69,7 +69,7 @@ class Rankings(commands.Cog):
         
         view = RankingsView(self.bot, interaction.user, page)
 
-        embed = view.createEmbed(page)
+        embed = await view.createEmbed(page)
         await interaction.response.send_message(embed = embed, view = view)
         view.message = await interaction.original_response()
 

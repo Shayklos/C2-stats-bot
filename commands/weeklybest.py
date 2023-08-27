@@ -16,7 +16,7 @@ class WeeklyBest(commands.Cog):
         correct = await methods.checks(interaction)
         if not correct:
             return
-        top5SPM, top5Cheese = database.weekly_best(self.bot.db)
+        top5SPM, top5Cheese = await database.weekly_best(self.bot.db)
         embed = discord.Embed(
                 title="Weekly Best",
                 color=0x0B3C52,

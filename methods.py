@@ -72,7 +72,7 @@ def thousandsSeparator(n: int) -> str:
         #1212847128944 -> 1.212.847.128.944
         return f'{n:,}'
 
-def check_netscores(db):
+async def check_netscores(db):
     with open("files/settings.json", "r") as file:
         data = json.load(file)
     now = time()
@@ -87,7 +87,7 @@ def check_netscores(db):
         json.dump(data,file)
 
     try:
-        database.add_recent_profile_data(db,7,True,True)
+        await database.add_recent_profile_data(db,7,True,True)
     except:
         log("add_recent_profile_data failed!", "files/log_errors.txt")
         
@@ -95,7 +95,7 @@ def check_netscores(db):
     with open("files/settings.json", "w") as file:
         json.dump(data,file)
 
-def check_rankings(db):
+async def check_rankings(db):
     with open("files/settings.json", "r") as file:
         data = json.load(file)
     now = time()
@@ -109,7 +109,7 @@ def check_rankings(db):
     with open("files/settings.json", "w") as file:
         json.dump(data,file)
 
-    database.refresh_rankings(db,300)
+    await database.refresh_rankings(db,300)
     data["locked"] = False
     with open("files/settings.json", "w") as file:
         json.dump(data,file)

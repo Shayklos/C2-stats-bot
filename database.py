@@ -1,4 +1,4 @@
-import sqlite3, urllib.request, json
+import sqlite3, aiosqlite, asyncio, urllib.request, json
 from settings import * 
 from datetime import datetime,timedelta
 from pytz import timezone
@@ -9,18 +9,19 @@ from methods import *
 
 
 
-def newest_round(db: sqlite3.Connection):
-    res = db.execute("select max(roundId) from Matches")
-    return res.fetchone()[0]
+async def newest_round(db: aiosqlite.Connection):
+    res = await db.execute("select max(roundId) from Matches")
+    result = await res.fetchone()
+    return result[0]
 
 
-@log_time
-def add_new_rounds(db: sqlite3.Connection):
+@async_log_time
+async def add_new_rounds(db: aiosqlite.Connection):
     """
     Adds to the database rounds played that are not already there.
     Relies on having data already.
     """
-    first_round = newest_round(db)+1 #First round that it is not in the db
+    first_round = await newest_round(db)+1 #First round that it is not in the db
     roundN = first_round
     empty = False
     count = 0
@@ -65,13 +66,13 @@ def add_new_rounds(db: sqlite3.Connection):
                 
                 count += 1
                     
-            db.executemany(query1,parameters1)
-            db.executemany(query2,parameters2)
-            db.commit()
+            await db.executemany(query1,parameters1)
+            await db.executemany(query2,parameters2)
+            await db.commit()
             roundN += 1000
         except Exception as e:
             print(e)
-            roundN = newest_round(db)+1
+            roundN = await newest_round(db)+1
     
     log(f"Added {count} matches.")
 
@@ -81,23 +82,24 @@ def add_new_rounds(db: sqlite3.Connection):
     # db.execute("select * from")
 
 
-@log_time
-def delete_old_data(db: sqlite3.Connection, days=30):
+@async_log_time
+async def delete_old_data(db: aiosqlite.Connection, days=30):
     date_now = datetime.now(tz = timezone('UTC'))
 
-    # db = sqlite3.connect(r"files\cultris.db")
-    res = db.execute("select max(roundId) from Matches where start < (?)", (date_now-timedelta(days=days),))
-    id = res.fetchone()[0]
+    cur = await db.execute("select max(roundId) from Matches where start < (?)", (date_now-timedelta(days=days),))
+    res = await cur.fetchone()
+    id = res[0]
 
-    res = db.execute("select count(roundId) from Matches where roundId < (?)", (id,))
-    db.execute("delete from Matches where roundId < (?)", (id,))
-    db.execute("delete from Rounds where roundId < (?)", (id,))
-    log(f"Deleted {res.fetchone()[0]} matches.")
-    db.commit()
+    res = await db.execute("select count(roundId) from Matches where roundId < (?)", (id,))
+    count = await res.fetchone()
+    await db.execute("delete from Matches where roundId < (?)", (id,))
+    await db.execute("delete from Rounds where roundId < (?)", (id,))
+    log(f"Deleted {count[0]} matches.")
+    await db.commit()
 
 
-@log_time
-def process_data(db: sqlite3.Connection, oldRound, newRound):
+@async_log_time
+async def process_data(db: aiosqlite.Connection, oldRound, newRound):
     """
     Takes all the rounds between oldRound and newRound. Adds data to the database.
 
@@ -114,21 +116,22 @@ def process_data(db: sqlite3.Connection, oldRound, newRound):
         conversion_table = ["roundId", "userId", "guestName", "linesGot", "linesSent", "linesBlocked", "blocks", "maxCombo", "playDuration", "team"]
         return {conversion_table[i] : player_rounds[i] for i in range(len(conversion_table))} 
 
-    rounds = db.execute("select * from rounds where roundId between ? and ?", (oldRound, newRound))
-    rulesets = db.execute("select ruleset from matches where roundId between ? and ?", (oldRound, newRound))
+    rounds = await db.execute("select * from rounds where roundId between ? and ?", (oldRound, newRound))
+    rulesets = await db.execute("select ruleset from matches where roundId between ? and ?", (oldRound, newRound))
     
 
     not_finished = True
     current_roundId = None
     count = 0
     while not_finished:
-        raw_round = rounds.fetchone()
+        raw_round = await rounds.fetchone()
         if raw_round is None:
             not_finished = True
             break
         elif raw_round[0] != current_roundId:
             current_roundId = raw_round[0]
-            ruleset = rulesets.fetchone()[0]
+            cur = await rulesets.fetchone()
+            ruleset = cur[0]
         
         round = player_dict_one(raw_round)
 
@@ -175,27 +178,28 @@ def process_data(db: sqlite3.Connection, oldRound, newRound):
                     round["playDuration"]]
         query += " where userId = ?"
         params.append(round["userId"])
-        db.execute(query,params)
+        await db.execute(query,params)
         count += 1
     log(f"Processed {count} rounds.")
-    db.commit()
+    await db.commit()
     return
 
 
-def find_userId(db: sqlite3.Connection, username: str):
+async def find_userId(db: aiosqlite.Connection, username: str):
     """
     Takes an username e.g. Shay and returns their user id e.g. 5840
     Returns None if no player with that id exists in db 
     """
 
-    res = db.execute("select userId from Users where name = ?", (username,)).fetchone()
+    cur = await db.execute("select userId from Users where name = ?", (username,))
+    userId = await cur.fetchone() 
 
-    if res is None:
+    if userId is None:
         return None    
-    return res[0]
+    return userId[0]
 
 
-def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False, commit = False):
+async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores = False, commit = False):
     """
     Adds/updates to db data found in user profiles (maxCombo, avgBPM, maxBPM, etc)
     """
@@ -209,15 +213,16 @@ def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False
     except:
         # website is down at the moment
         log(f"in update_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
-        sleep(30)
-        update_profile_data(db, userId, add_to_netscores, commit)
+        await asyncio.sleep(30)
+        await update_profile_data(db, userId, add_to_netscores, commit)
         return
     
     if data.get("stats") is None:
         query = "update Users set name = ? where userId = ?"
         params = (data.get("name"), userId)
     else:
-        res = db.execute("select peakRank, peakRankScore, name from Users where userId = ?", (userId,)).fetchone()
+        cur = await db.execute("select peakRank, peakRankScore, name from Users where userId = ?", (userId,))
+        res = await cur.fetchone()
         old_rank_data = (res[0], res[1]) #320.0, 8
         old_name = res[2]
         stats = data.get("stats")
@@ -244,7 +249,7 @@ def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False
                   stats.get("avgroundBpm"),
                   stats.get("playedmin")]
         if add_to_netscores:
-            add_netscore(db, userId, stats.get("score"))
+            await add_netscore(db, userId, stats.get("score"))
 
 
         query += ", peakRank = ?, peakRankScore = ? where userId = ?"
@@ -254,12 +259,12 @@ def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False
             params += [min(stats.get("rank"), old_rank_data[0]), max(stats.get("score"), old_rank_data[1]), userId] 
     while True:
         try:
-            db.execute(query,params)
+            await db.execute(query,params)
             if commit:
-                db.commit()
+                await db.commit()
         except Exception as e:
             print(e)
-            sleep(1)
+            asyncio.sleep(1)
             continue
         else:
             log(f"Added {params[0]}")
@@ -267,43 +272,40 @@ def update_profile_data(db: sqlite3.Connection, userId, add_to_netscores = False
     
     return data
 
-# add_profile_data(db, 5840)
-
-@log_time
-def add_recent_profile_data(db: sqlite3.Connection, days=7, add_to_netscores=False, commit = False):
+@async_log_time
+async def add_recent_profile_data(db: aiosqlite.Connection, days=7, add_to_netscores=False, commit = False):
     """
     Adds to the db data profiles of all players that have played in 'days' days
     """
-    date_now = datetime.now(tz = timezone('UTC'))
-    res = db.execute(
-        "select distinct(userId) from Rounds Inner Join Matches on Rounds.roundId = Matches.roundId where isOfficial and ruleset = 0 and start > ? and userId is not null", 
-        (date_now-timedelta(days=days),))
-    
-    # with ThreadPoolExecutor(max_workers=1) as executor:
-    #     futures = [executor.submit(function, x) for x in range(10)]
-    while id := res.fetchone():
-        update_profile_data(db, id[0], add_to_netscores=add_to_netscores, commit=commit)
+    date_now = datetime.now(tz = timezone('UTC'))   
+    async with db.execute(
+        """select distinct(userId) from 
+                Rounds Inner Join Matches on Rounds.roundId = Matches.roundId 
+            where isOfficial and 
+                ruleset = 0 and 
+                start > ? and 
+                userId is not null""", 
+        (date_now-timedelta(days=days),)) as cursor:
+        async for id in cursor:
+            await update_profile_data(db, id[0], add_to_netscores=add_to_netscores, commit=commit)
+
     
 
-def add_netscore(db: sqlite3.Connection, userId, score):
+async def add_netscore(db: aiosqlite.Connection, userId, score):
     def push(List):
-        # print(userId, score)
-        # print(List)
         x = list(List)
         x.insert(0,score)
         return x[:-1]
 
-    # print(userId)
-    res = db.execute("select day1,day2,day3,day4,day5,day6,day7 from Netscores where userId = ?", (userId,))
-    row = res.fetchone()
-    # print(row)
+    res = await db.execute("select day1,day2,day3,day4,day5,day6,day7 from Netscores where userId = ?", (userId,))
+    row = await res.fetchone()
     if row is None:
-        db.execute("insert into Netscores (userId, day1) values (?, ?)", (userId, score))
+        await db.execute("insert into Netscores (userId, day1) values (?, ?)", (userId, score))
         return
     
     while True:
         try:
-            db.execute("""update Netscores set
+            await db.execute("""update Netscores set
                day1=?,
                day2=?,
                day3=?,
@@ -315,7 +317,7 @@ def add_netscore(db: sqlite3.Connection, userId, score):
                """,push(row) + [userId] )    
         except Exception as e:
             print(e)
-            sleep(1)
+            await asyncio.sleep(1)
             continue
         else:
             break
@@ -323,9 +325,10 @@ def add_netscore(db: sqlite3.Connection, userId, score):
     
 
 
-def update_userlist(db: sqlite3.Connection):
-    res = db.execute("select max(userId) from Users")
-    id = res.fetchone()[0]+1
+async def update_userlist(db: aiosqlite.Connection):
+    res = await db.execute("select max(userId) from Users")
+    row = await res.fetchone()
+    id = row[0] + 1
    
     #TODO this is like uber bad practice, basically waiting for error connecting with the api to determine no more users left to add
     while True:
@@ -353,7 +356,7 @@ def update_userlist(db: sqlite3.Connection):
                             stats.get("avgroundBpm"),
                             stats.get("playedmin")]
                 # print(query,params)
-                db.execute(query,params)
+                await db.execute(query,params)
                 log(f"New account: user {data.get('name')} ({id}).")
                 id+=1
 
@@ -363,20 +366,21 @@ def update_userlist(db: sqlite3.Connection):
         except: #I've seen urllib.error.URLError and http.client.RemoteDisconnected
             # website is down at the moment / client has no internet connection
             log("No connection", 'files/log_errors.txt')
-            sleep(30)
-            update_userlist(db)
+            await asyncio.sleep(30)
+            await update_userlist(db)
     
 
-def player_stats(db: sqlite3.Connection, userId = None, username = None):
+async def player_stats(db: aiosqlite.Connection, userId = None, username = None):
     if not (userId or username):
         return None
     if username and not userId:
-        userId = find_userId(db, username)
+        userId = await find_userId(db, username)
         if userId is None:
             return None
-    hash = update_profile_data(db, userId, commit=True).get("gravatarHash")
-    res = db.execute("select * from Users where userId = ?", (userId,))
-    data = res.fetchone()
+    profile_data = await update_profile_data(db, userId, commit=True)
+    hash = profile_data.get("gravatarHash")
+    res = await db.execute("select * from Users where userId = ?", (userId,))
+    data = await res.fetchone()
     return {
         "userId" : data[0],
         "name" : data[1],
@@ -408,7 +412,7 @@ def player_stats(db: sqlite3.Connection, userId = None, username = None):
     }
 
 
-def time_based_stats_old(db: sqlite3.Connection, userId = None, username = None, days = 7):
+def time_based_stats_old(db: aiosqlite.Connection, userId = None, username = None, days = 7):
     #deprecated
     if not (userId or username):
         return None
@@ -469,19 +473,19 @@ def time_based_stats_old(db: sqlite3.Connection, userId = None, username = None,
     }
 # print(time_based_stats(db, 5840))
 
-def time_based_stats(db: sqlite3.Connection, userId = None, username = None, days = 7):
+async def time_based_stats(db: aiosqlite.Connection, userId = None, username = None, days = 7):
     #Get user's ID if not given
     if not (userId or username):
         return None
     if username and not userId:
-        userId = find_userId(db, username)
+        userId = await find_userId(db, username)
         if userId is None:
             return None
 
     date = datetime.now(tz = timezone('UTC'))-timedelta(days=days)
 
-    db.row_factory = sqlite3.Row
-    rounds = db.execute("""
+    db.row_factory = aiosqlite.Row
+    rounds = await db.execute("""
                         select 	
                             roomsize,
                             winner,	
@@ -503,7 +507,7 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
 
     played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = powerv2 = 0
     
-    for round in rounds:
+    async for round in rounds:
         played += 1
         if round["roomsize"] == 1:
             winned += 1
@@ -565,11 +569,11 @@ def time_based_stats(db: sqlite3.Connection, userId = None, username = None, day
 
 
 
-def weekly_best(db: sqlite3.Connection, days = 7, top = 5):
+async def weekly_best(db: aiosqlite.Connection, days = 7, top = 5):
 
 
     date_now = datetime.now(tz = timezone('UTC'))
-    res = db.execute("""
+    res = await db.execute("""
         with recentRounds as 
             (select Matches.roundId, linesSent, playDuration, userId from Rounds join Matches on Rounds.roundId = Matches.roundId where start > ?)
         select name, 60*recentRounds.linesSent/playDuration as SPM 
@@ -577,11 +581,11 @@ def weekly_best(db: sqlite3.Connection, days = 7, top = 5):
                 on recentRounds.userId = Users.userId 
             order by SPM desc limit ?
         """, (date_now-timedelta(days=days), top) )
-    top5SPM = res.fetchall()
+    top5SPM = await res.fetchall()
     
     # cheeseRows = 0 if player has finished a Cheese game, but also if he's gone AFK,
     # so additional filters are needed. It's faulty but is the best thing I could think of
-    res = db.execute("""
+    res = await db.execute("""
         select name, playDuration 
             from Rounds join Matches on 
                 Rounds.roundId = Matches.roundId 
@@ -590,19 +594,19 @@ def weekly_best(db: sqlite3.Connection, days = 7, top = 5):
             where blocks>8 and rounds.maxCombo> 2 and ruleset = 1 and start > ? and not cheeseRows order by playDuration asc limit ?                                
                      """, (date_now-timedelta(days=days), top) )
     
-    top5Cheese = res.fetchall()
+    top5Cheese = await res.fetchall()
 
     return (top5SPM, top5Cheese)
 
 
-def getNetscore(db: sqlite3.Connection, userId = None, username = None, days = 7):
+async def getNetscore(db: aiosqlite.Connection, userId = None, username = None, days = 7):
     """
     DOES NOT return a Netscore. Returns the oldest rank score stored of a player, and the days this data has
     """
     if not (userId or username):
         return None
     if username and not userId:
-        userId = find_userId(db, username)
+        userId = await find_userId(db, username)
         if userId is None:
             return None
     
@@ -613,7 +617,8 @@ def getNetscore(db: sqlite3.Connection, userId = None, username = None, days = 7
     query += f"day{days} from Netscores where userId = ?"
 
 
-    scores = db.execute(query, (userId, )).fetchone()
+    cur = await db.execute(query, (userId, ))
+    scores = await cur.fetchone()
     if scores is None:
         return 0, 0
     
@@ -625,32 +630,37 @@ def getNetscore(db: sqlite3.Connection, userId = None, username = None, days = 7
 
 
 
-def getNetscores(db: sqlite3.Connection, days = 7, aproximation = True):
+async def getNetscores(db: aiosqlite.Connection, days = 7, aproximation = True):
     """
     Intended to be the list of netscores to send to /netscores in bot.py
     """
 
-    return db.execute(
+    cur = await db.execute(
         f"""with elegibleUsers as (select distinct userId as u from Rounds 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ?)
         select Users.userId, name, day1-day{days} as net from Netscores inner join Users on Netscores.userId = Users.userId inner join elegibleUsers on u=Users.userId where day{days} is not null order by net desc
         """, 
-        (datetime.now(tz = timezone('UTC'))-timedelta(days=days),)).fetchall()
+        (datetime.now(tz = timezone('UTC'))-timedelta(days=days),))
+    
+    res = await cur.fetchall()
+
+    return res
     
 
 
     
 
-def getCombos(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesCombos, rawdata = False):
+async def getCombos(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesCombos, rawdata = False):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
 
-    combos = db.execute(f"""select Rounds.userId, name, cast(sum(Rounds.maxCombo) as float)/count(Matches.roundId) as avgCombo, count(Matches.roundId) as c
+    cur = await db.execute(f"""select Rounds.userId, name, cast(sum(Rounds.maxCombo) as float)/count(Matches.roundId) as avgCombo, count(Matches.roundId) as c
                 from Matches inner join Rounds on Matches.roundId = Rounds.roundId inner join users on users.userId = rounds.userId where ruleset = 0 and start > ? group by Rounds.userId having c>{requiredMatches} order by avgCombo desc """,
-                (datetime.now(tz = timezone('UTC'))-timedelta(days=days),)).fetchall()
+                (datetime.now(tz = timezone('UTC'))-timedelta(days=days),))
+    combos = await cur.fetchall()
     if rawdata:
         return [(combo[0], combo[1], combo[2]) for combo in combos]
     else:
@@ -660,7 +670,7 @@ def getCombos(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 
-def getPlayersOnline(db: sqlite3.Connection):
+def getPlayersOnline():
     with urllib.request.urlopen(LIVEINFO_URL) as URL:
         liveinfo = json.load(URL)
 
@@ -702,39 +712,44 @@ def getPlayersOnline(db: sqlite3.Connection):
         
 
 
-def getPlayersWhoPlayedRecently(db: sqlite3.Connection, hours=1):
+async def getPlayersWhoPlayedRecently(db: aiosqlite.Connection, hours=1):
     date_now = datetime.now(tz = timezone('UTC'))
-    players = db.execute("select distinct name from Rounds join Matches on Rounds.roundId = Matches.roundId join Users on Users.userId = Rounds.userId where start > ?", 
-        (date_now-timedelta(hours=hours), )).fetchall()
-    guests = db.execute("select distinct guestName from Rounds join Matches on Rounds.roundId = Matches.roundId where guestName is not null and start>?", 
-        (date_now-timedelta(hours=hours), )).fetchall()
+    cur = await db.execute("select distinct name from Rounds join Matches on Rounds.roundId = Matches.roundId join Users on Users.userId = Rounds.userId where start > ?", 
+        (date_now-timedelta(hours=hours), ))
+    players = await cur.fetchall()
+    cur = await db.execute("select distinct guestName from Rounds join Matches on Rounds.roundId = Matches.roundId where guestName is not null and start>?", 
+        (date_now-timedelta(hours=hours), ))
+    guests = await cur.fetchall()
 
     return{
         "players": players,
-        "guests":guests
+        "guests": guests
     }
 
-def fuzzysearch(db: sqlite3.Connection, username: str) -> tuple:
-    users = db.execute("select userId, name from Users where name is not ''").fetchall()
+async def fuzzysearch(db: aiosqlite.Connection, username: str) -> tuple:
+    cur = await db.execute("select userId, name from Users where name is not ''")
+    users = await cur.fetchall()
     ratios = sorted([(fuzz.ratio(username.lower(), user[1].lower()), user[0], user[1]) for user in users], reverse=True)
 
     return ratios[0]
 
 
 
-def getTimePlayed(db: sqlite3.Connection, days = 7):
+async def getTimePlayed(db: aiosqlite.Connection, days = 7):
     date_now = datetime.now(tz = timezone('UTC'))
-    res = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, sum(playDuration) as mins from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null group by Users.userId order by mins desc""", 
         (date_now-timedelta(days=days),))
-    return res.fetchall()
+    
+    res = await cur.fetchall()
+    return res
     
 
-@log_time
-def update_ranks(db: sqlite3.Connection, old_round, new_round, commit = False):
+@async_log_time
+async def update_ranks(db: aiosqlite.Connection, old_round, new_round, commit = False):
     """
     Detects which persons have played on FFA since old_round and new_round, update
     """
@@ -742,12 +757,13 @@ def update_ranks(db: sqlite3.Connection, old_round, new_round, commit = False):
     if old_round>new_round:
         log("0 places changed in the leaderboard")
         return
-    res = db.execute("""select userId, rank from Users inner join
+    cur = await db.execute("""select userId, rank from Users inner join
 (select distinct userid as u from rounds inner join Matches on Matches.roundId = Rounds.roundId and u
                      where ruleset = 0 and isOfficial and speedLimit <> 80 and Rounds.roundid between ? and ?)
 on userId = u
-""", (old_round, new_round)).fetchall()
+""", (old_round, new_round))
     
+    res = await cur.fetchall()
     if not res:
         log("0 places changed in the leaderboard")
         return
@@ -764,8 +780,8 @@ on userId = u
         except:
             # website is down at the moment
             log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
-            sleep(30)
-            update_ranks(db, old_round, new_round, commit)
+            await asyncio.sleep(30)
+            await update_ranks(db, old_round, new_round, commit)
             return
 
         if data.get("stats") is None:
@@ -774,9 +790,10 @@ on userId = u
             log(f"Couldn't add {id}. old_round: {old_round}. Weird rank")
             continue
         else:
-            res = db.execute("select peakRank, peakRankScore, name from Users where userId = ?", (id,)).fetchone()
-            old_rank_data = (res[0], res[1]) #320.0, 8
-            old_name = res[2]
+            cur = await db.execute("select peakRank, peakRankScore, name from Users where userId = ?", (id,))
+            peak = await cur.fetchone()
+            old_rank_data = (peak[0], peak[1]) #320.0, 8
+            old_name = peak[2]
             stats = data.get("stats")
             if stats.get("name") != old_name:
                 log(f"ID: {id}: {old_name} → {stats.get('name')}", "files/log_namechanges.txt")
@@ -807,9 +824,9 @@ on userId = u
             else:
                 # print(stats.get("rank"), stats.get("score"))
                 params += [min(stats.get("rank"), old_rank_data[0]), max(stats.get("score"), old_rank_data[1]), id]    
-        db.execute(query,params)
-        db.commit()
-        sleep(0.1) #releases database lock for a moment
+        await db.execute(query,params)
+        await db.commit()
+        await asyncio.sleep(0) #releases database lock for a moment
         log(f"Updated {params[0]}")
         changes.append((rank, stats.get("rank")))
         if not rank:
@@ -817,7 +834,9 @@ on userId = u
 
     #New accounts will have a rank of None, so give them the highest possible rank for the purposes of this method
     if NoneRanks:
-        maxround = db.execute("select max(rank) from Users").fetchone()[0]+1
+        cur = await db.execute("select max(rank) from Users")
+        res = await cur.fetchone()
+        maxround = res[0]+1
         for i, element in enumerate(changes):
             if element[0]:
                 continue
@@ -828,8 +847,9 @@ on userId = u
     MIN = min([min(a, b) for a, b in changes])
     MAX = max([max(a, b) for a, b in changes])
 
-    players = db.execute("select userId, rank from Users where rank between ? and ? order by rank",
-                     (MIN, MAX)).fetchall()
+    cur = await db.execute("select userId, rank from Users where rank between ? and ? order by rank",
+                     (MIN, MAX))
+    players = await cur.fetchall()
     offset = players[0][1] # = MIN
     result = [None]*len(players)
 
@@ -842,89 +862,57 @@ on userId = u
                 result[i] = (i+offset,players[0][0])
                 del players[0]
     except:
-        res = db.execute("select userId from Users where score is not null order by score desc").fetchall()
+        cur = await db.execute("select userId from Users where score is not null order by score desc")
+        res = await cur.fetchall()
         ids = [id[0] for id in res]
 
         for i, id in enumerate(ids, start = 1):
-            db.execute("update Users set rank = ? where userId = ?", (i, id))
+            await db.execute("update Users set rank = ? where userId = ?", (i, id))
 
-        db.commit()
+        await db.commit()
         return
     #finally, update new ranks
     for rank, id in result:
-        db.execute("update Users set rank = ? where userId = ?", (rank,id))
+        await db.execute("update Users set rank = ? where userId = ?", (rank,id))
 
     log(f"{len(changes)} places changed in the leaderboard")
     if commit:
-        db.commit()
+        await db.commit()
 
 
-def getRankings(db: sqlite3.Connection, start = 1, end = 20, fast = True):
-    if start > 0:
-        if fast:
-            res = db.execute("select userId, name, score from Users where rank between ? and ? order by rank asc", (start, end)).fetchall()
-            return [(a[0], a[1], str(round(a[2],1))) for a in res]
-
-        else:
-            res = db.execute("select userId, name from Users where rank between ? and ? order by rank asc", (start, end)).fetchall()
-            leaderboard = []
-            for userId, name in res:
-                url = BASE_USER_URL+str(userId)
-                try:
-                    with urllib.request.urlopen(url) as URL:
-                        data = json.load(URL)
-                except:
-                    score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
-                    log(f"In getRankings: Couldn't display {userId} in leaderboard.", file = 'files/log_error.txt')
-                    leaderboard.append((userId, name, f"~{score:.2f}"))
-                leaderboard.append((userId, name, f"{data.get('stats').get('score'):.1f}"))
-            return leaderboard
-    else: #really don't care enough sorry for these next lines of code
-        if fast:
-            maxrank = db.execute("select max(rank) from Users").fetchone()[0]
-            res = db.execute("select userId, name, score from Users where rank between ? and ? order by rank desc", ((maxrank-19) + 20*(start+1), maxrank + 20*(start+1))).fetchall()
-            return [(a[0], a[1], str(round(a[2],1))) for a in res]
-        else: 
-            res = db.execute("select userId, name from Users where rank between ? and ? order by rank desc", ((maxrank-19) + 20*(start+1), maxrank + 20*(start+1))).fetchall()
-            leaderboard = []
-            for userId, name in res:
-                url = BASE_USER_URL+str(userId)
-                try:
-                    with urllib.request.urlopen(url) as URL:
-                        data = json.load(URL)
-                except:
-                    score = db.execute("select score from Users where userId = ?", (userId,)).fetchone()[0]
-                    log(f"Couldn't display {userId} in leaderboard.", "files/log_error.txt")
-                    leaderboard.append((userId, name, f"~{score:.2f}"))
-                leaderboard.append((userId, name, f"{data.get('stats').get('score'):.1f}"))
-            return leaderboard
+async def getRankings(db: aiosqlite.Connection, start = 1, end = 20):
+    cur = await db.execute("select userId, name, score from Users where rank between ? and ? order by rank asc", (start, end))
+    res = await cur.fetchall()
+    return [(a[0], a[1], str(round(a[2],1))) for a in res]
 
 
 
-def getSent(db: sqlite3.Connection, days = 7):
+async def getSent(db: aiosqlite.Connection, days = 7):
     date_now = datetime.now(tz = timezone('UTC'))
-    sent = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, sum(Rounds.linesSent) as Sent from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null group by Users.userId having Sent > 0 order by Sent desc""", 
-        (date_now-timedelta(days=days),)).fetchall()
+        (date_now-timedelta(days=days),))
+    sent = await cur.fetchall()
     
-    return [(combo[0], combo[1], f"{thousandsSeparator(combo[2])}") for combo in sent ]
+    return [(combo[0], combo[1], f"{thousandsSeparator(combo[2])}") for combo in sent]
 
-def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesSPM, rawdata = False):
+async def getavgSPM(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesSPM, rawdata = False):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
-    spm = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.linesSent) as float)/sum(playDuration),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null and ruleset = 0 group by Users.userId having avgSPM > 0 and c> ? order by avgSPM desc""", 
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches))
 
+    spm = await cur.fetchall()
 
     if rawdata:
         return [(combo[0], combo[1], combo[2]) for combo in spm]
@@ -933,81 +921,82 @@ def getavgSPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
 
 
 
-def getavgOPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesOPM):
+async def getavgOPM(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesOPM):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
-    spm = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.linesSent+Rounds.linesBlocked) as float)/sum(playDuration),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null and ruleset = 0 group by Users.userId having avgSPM > 0 and c> ? order by avgSPM desc""", 
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches))
+    spm = await cur.fetchall()
 
 
-    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm ]
+    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm]
 
 
-def getavgOPB(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesOPB):
+async def getavgOPB(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesOPB):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
-    spm = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, round(100*cast(sum(Rounds.linesSent+Rounds.linesBlocked) as float)/sum(blocks),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null and ruleset = 0 group by Users.userId having avgSPM > 0 and c> ? order by avgSPM desc""", 
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches)) 
+    spm = await cur.fetchall()
+
+    return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm]
 
 
-    return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm ]
-
-
-def getavgBPM(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBPM):
+async def getavgBPM(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesBPM):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
-    spm = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, round(60*cast(sum(Rounds.blocks) as float)/sum(playDuration),1) as avgBPM, count(Rounds.roundId) as c from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null group by Users.userId having avgBPM > 0 and c> ? order by avgBPM desc""", 
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches))
+    spm = await cur.fetchall()
+
+    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm]
 
 
-    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in spm ]
-
-
-def getBlockedPercent(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+async def getBlockedPercent(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     date_now = datetime.now(tz = timezone('UTC'))
-    spm = db.execute(
+    cur = await db.execute(
         """select Users.userId, name, round(100*cast(sum(Rounds.linesBlocked) as float)/sum(Rounds.linesGot),1) as avgSPM, count(Rounds.roundId) as c from Rounds 
         inner join Users on Users.userId = Rounds.userId 
         inner join Matches on Matches.roundId = Rounds.roundId 
         where start > ? and Users.userId is not null and ruleset = 0 group by Users.userId having avgSPM > 0 and c> ? order by avgSPM desc""", 
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches)) 
+    spm = await cur.fetchall()
 
+    return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm]
 
-    return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm ]
-
-def getPower(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     #normalized opm
     date_now = datetime.now(tz = timezone('UTC'))
-    power = db.execute(
+    cur = await db.execute(
         """select users.userId, name, round(avg(powerStat),1) as power, count(roundId) as playedmatches from (
             with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
             select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
@@ -1015,19 +1004,21 @@ def getPower(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatches
             join users on users.userid= t.userid
             group by users.userId having playedmatches>? order by power desc
         """,
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches))
     
-    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in power ]
+    power = await cur.fetchall()
+    
+    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in power]
 
 
-def getPower2(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+async def getPower2(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     #normalized opm
     date_now = datetime.now(tz = timezone('UTC'))
-    power = db.execute(
+    cur = await db.execute(
         """select users.userId, name, avg(powerStat) as power, count(roundId) as playedmatches from (
             with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
             select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
@@ -1035,13 +1026,15 @@ def getPower2(db: sqlite3.Connection, days = 7, requiredMatches = requiredMatche
             join users on users.userid= t.userid
             group by users.userId having playedmatches>? order by power desc
         """,
-        (date_now-timedelta(days=days),requiredMatches)).fetchall()
+        (date_now-timedelta(days=days),requiredMatches))
+    
+    power = await cur.fetchall()
     
     return [(combo[0], combo[1], f"**{37.8883647435868/30*combo[2]:.1f}** in {combo[3]} matches" ) for combo in power ]
 
-def userCheeseTimes(db: sqlite3.Connection, userId, days=7, limit = 20):
+async def userCheeseTimes(db: aiosqlite.Connection, userId, days=7, limit = 20):
     date_now = datetime.now(tz = timezone('UTC'))
-    times = db.execute(
+    cur = await db.execute(
         """
 select round(playDuration,2) as time, round(60*blocks/playDuration,1) as BPM 
     from Rounds join Matches on Rounds.roundId = Matches.roundId 
@@ -1053,14 +1046,16 @@ select round(playDuration,2) as time, round(60*blocks/playDuration,1) as BPM
         and start > ?
     order by playDuration asc limit ?
 """, 
-    (userId, date_now-timedelta(days=days), limit)).fetchall()
+    (userId, date_now-timedelta(days=days), limit))
+
+    times = await cur.fetchall()
 
     return times
 
 
-def userComboSpread(db: sqlite3.Connection, userId, days=7):
+async def userComboSpread(db: aiosqlite.Connection, userId, days=7):
     date_now = datetime.now(tz = timezone('UTC'))
-    combos = db.execute("""
+    cur = await db.execute("""
     select maxCombo, count(*) from 
         Rounds join Matches on Rounds.roundId = Matches.roundId 
         where ruleset = 0 and 
@@ -1068,19 +1063,20 @@ def userComboSpread(db: sqlite3.Connection, userId, days=7):
             start > ?
         group by maxCombo
         """,
-    (userId, date_now-timedelta(days=days))).fetchall()
+    (userId, date_now-timedelta(days=days)))
+    combos = await cur.fetchall()
 
     return combos
 
 
-def refresh_rankings(db: sqlite3.Connection, refresh_limit: int):
+async def refresh_rankings(db: aiosqlite.Connection, refresh_limit: int):
     """
     Finds all the players in the top [refresh_limit] that haven't played in the last week and updates those.
     """
 
     date_now = datetime.now(tz = timezone('UTC'))
     #Gets inactive players
-    inactive_users = db.execute("""
+    inactive_users = await db.execute("""
         with RecentRounds as 
             (select distinct userId from 
                 Rounds join Matches
@@ -1093,43 +1089,23 @@ def refresh_rankings(db: sqlite3.Connection, refresh_limit: int):
             where RecentRounds.userId is null and 
                 Users.rank < ?
         """,
-        (date_now - timedelta(7), refresh_limit) ) 
+        (date_now - timedelta(7), refresh_limit)) 
 
     #Updates their score
-    for userId, _ in inactive_users:
-        update_profile_data(db, userId)
+    async for userId, _ in inactive_users:
+        await update_profile_data(db, userId)
 
     #Sort the leaderboard
-    res = db.execute("select userId from Users where score is not null order by score desc").fetchall()
+    cur = await db.execute("select userId from Users where score is not null order by score desc")
+    res = await cur.fetchall()
     ids = [id[0] for id in res]
 
     for i, id in enumerate(ids, start = 1):
-        db.execute("update Users set rank = ? where userId = ?", (i, id))
+        await db.execute("update Users set rank = ? where userId = ?", (i, id))
     
-    db.commit()
+    await db.commit()
 
 
 if __name__ == "__main__":
     db = sqlite3.connect(r"files\cultris.db")
-    print(getPlayersOnline(db))
-    # refresh_rankings(db, 100)
-    # print(userComboSpread(db, 5840, days=7))
-    # print(database.time_based_stats(db, 2440, days=26))
-    
-    # print(getBlockedPercent(db)) 
-    
-# print(getSent(db))
-
-# print(getRankings(db, -2))
-
-# print(getNetscores(db))
-# print(fuzzysearch(db, 'chay'))
-# print(fuzz.ratio("z2sam", 'z2sam'))
-
-# add_profile_data(db, 14331, add_to_netscores=False, commit=True)
-    # add_recent_profile_data(db, add_to_netscores=True)
-    # db.commit()
-# print(player_stats(db, "[DEV] Simon"))
-# print(time_based_stats(db, username="Shay"))
-# print(weeklyBest(db))
-
+    print(getPlayersOnline())

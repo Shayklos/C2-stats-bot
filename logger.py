@@ -17,6 +17,15 @@ def log_time(func):
         return result
     return wrapper
 
+def async_log_time(func):
+    async def wrapper(*arg, **kwargs):
+        start = time.perf_counter()  
+        result = await func(*arg, **kwargs)
+        end = time.perf_counter()
+
+        log(f'{func.__name__} took {end - start} seconds.', 'files/log_time.txt')  
+        return result
+    return wrapper
 
 def moment(filename=False) -> str:
     #Get time now

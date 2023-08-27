@@ -17,14 +17,13 @@ class StatsView(CultrisView):
         
         self.userId = userId
         self.days = days
-        self.player = database.player_stats(self.bot.db, userId)
         self.state = 0 #0: stats. 1: cheese. 2: combo
 
 
-    def createStatsEmbed(self, userId, days):
-            timeStats = database.time_based_stats(self.bot.db, userId, days=days)
+    async def createStatsEmbed(self, userId, days):
+            timeStats = await database.time_based_stats(self.bot.db, userId, days=days)
             player = self.player
-            netscore, netscoreDays = database.getNetscore(self.bot.db, userId, days=days)
+            netscore, netscoreDays = await database.getNetscore(self.bot.db, userId, days=days)
             embed = discord.Embed(
                     title=player["name"],
                     color=0x0B3C52,
@@ -64,8 +63,8 @@ class StatsView(CultrisView):
             return embed
 
 
-    def createCheeseEmbed(self, userId, days):
-        cheese = database.userCheeseTimes(self.bot.db, userId, days)
+    async def createCheeseEmbed(self, userId, days):
+        cheese = await database.userCheeseTimes(self.bot.db, userId, days)
         player = self.player
         place = 1
         places = ""
@@ -88,8 +87,8 @@ class StatsView(CultrisView):
         return embed
             
 
-    def createComboEmbed(self, userId, days):
-        spread = database.userComboSpread(self.bot.db, userId, days)
+    async def createComboEmbed(self, userId, days):
+        spread = await database.userComboSpread(self.bot.db, userId, days)
         player = self.player
         combos = ""
         counts = ""
@@ -110,17 +109,13 @@ class StatsView(CultrisView):
     async def editEmbed(self, interaction: discord.Interaction):
         match self.state:
             case 0: #Stats
-                await interaction.response.edit_message(
-                    embed=self.createStatsEmbed(self.userId, self.days), 
-                    view=self)
+                embed = await self.createStatsEmbed(self.userId, self.days)
             case 1: #Cheese
-                await interaction.response.edit_message(
-                    embed=self.createCheeseEmbed(self.userId, self.days), 
-                    view=self)
+                embed = await self.createCheeseEmbed(self.userId, self.days)
             case 2: #Combo spread
-                await interaction.response.edit_message(
-                    embed=self.createComboEmbed(self.userId, self.days),
-                    view=self) 
+                embed = await self.createComboEmbed(self.userId, self.days)
+
+        await interaction.response.edit_message(embed=embed, view=self) 
 
     @discord.ui.button(label="Week down", row = 0, style=discord.ButtonStyle.primary, emoji="⏬") 
     async def week_down(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -209,12 +204,13 @@ class Stats(commands.Cog):
             if not username:
                 username = interaction.user.display_name
 
-            ratio, userId, user = database.fuzzysearch(self.bot.db, username.lower())
+            ratio, userId, user = await database.fuzzysearch(self.bot.db, username.lower())
             msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
 
             view = StatsView(self.bot, interaction.user, userId, days)
+            view.player = await database.player_stats(self.bot.db, userId)
 
-            embed = view.createStatsEmbed(userId, days)
+            embed = await view.createStatsEmbed(userId, days)
             await interaction.response.send_message(msg, embed=embed, view=view)
             view.message = await interaction.original_response()
             
