@@ -107,33 +107,21 @@ async def process_data(db: aiosqlite.Connection, oldRound, newRound):
     ["roundId","userId","name","got","sent","blocked","blocks", "maxCombo", "playDuration", "team"]
     (12421684,  None,   'guest', 25,    47,     14,       78,         10,        39.1243,      None), 
     """
-    def player_dict_one(player_rounds):
-        """
-        Transforms list into dictionary.
-        Used in process_data for clarity.
-        """
-        #TODO remove roundId
-        conversion_table = ["roundId", "userId", "guestName", "linesGot", "linesSent", "linesBlocked", "blocks", "maxCombo", "playDuration", "team"]
-        return {conversion_table[i] : player_rounds[i] for i in range(len(conversion_table))} 
 
     rounds = await db.execute("select * from rounds where roundId between ? and ?", (oldRound, newRound))
     rulesets = await db.execute("select ruleset from matches where roundId between ? and ?", (oldRound, newRound))
     
 
-    not_finished = True
     current_roundId = None
     count = 0
-    while not_finished:
-        raw_round = await rounds.fetchone()
-        if raw_round is None:
-            not_finished = True
+    async for round in rounds:
+        if round is None:
             break
-        elif raw_round[0] != current_roundId:
-            current_roundId = raw_round[0]
+        elif round["roundId"] != current_roundId:
+            current_roundId = round["roundId"]
             cur = await rulesets.fetchone()
             ruleset = cur[0]
         
-        round = player_dict_one(raw_round)
 
         #basically a 'choose your own adventure' query
         query = "UPDATE Users Set blocksPlaced = blocksPlaced + ?"
@@ -180,7 +168,7 @@ async def process_data(db: aiosqlite.Connection, oldRound, newRound):
         params.append(round["userId"])
         await db.execute(query,params)
         count += 1
-    log(f"Processed {count} rounds.")
+    # log(f"Processed {count} rounds.")
     await db.commit()
     return
 
@@ -484,7 +472,6 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
 
     date = datetime.now(tz = timezone('UTC'))-timedelta(days=days)
 
-    db.row_factory = aiosqlite.Row
     rounds = await db.execute("""
                         select 	
                             roomsize,
@@ -503,7 +490,6 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
                         on x.roundId=Rounds.roundId 
                         
                         where start > ? and userId = ? and playDuration and ruleset = 0""", (date, userId))
-    db.row_factory = None
 
     played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = powerv2 = 0
     

@@ -14,7 +14,7 @@ GUILD_ID = getenv('DISCORD_GUILD_ID')
 
 class CultrisBot(commands.Bot):
     def __init__(self, intents: discord.Intents):
-      super().__init__(command_prefix = '/', intents = intents, activity=discord.Game(name="Cultris II"))
+        super().__init__(command_prefix = '/', intents = intents, activity=discord.Game(name="Cultris II"))
 
     async def setup_hook(self):
         
@@ -29,6 +29,7 @@ class CultrisBot(commands.Bot):
         await self.tree.sync(guild=discord.Object(id=GUILD_ID))
         await self.tree.sync(guild=None)
         self.db = await aiosqlite.connect(r"files/cultris.db")
+        self.db.row_factory = aiosqlite.Row
 
         print("Bot is ready!")
 

@@ -19,5 +19,3 @@ Discord bot that displays Cultris II stats.
 - /rounds command for a player rounds
 - in /online : if all players in a room are afk, these players wont be displayed
 - in /leaderboard : Power leaderboard is using the approximate formula
-- in process_data : use aiosqlite.Row
-- in player_data : use aiosqlite.Row

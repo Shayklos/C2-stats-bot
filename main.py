@@ -13,6 +13,7 @@ async def gather_data():
         print("DEVELOPER MODE")
 
     db = await aiosqlite.connect(r"files\cultris.db", check_same_thread=False)
+    db.row_factory = aiosqlite.Row
     while True:
         await update_userlist(db)
         oldRound = await newest_round(db)
