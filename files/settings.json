@@ -1,7 +1,7 @@
 {
     "locked": false,
-    "NetscoreTime": 1692707974,
-    "RefreshRankingsTime": 1692376635,
+    "NetscoreTime": 1693140045,
+    "RefreshRankingsTime": 1692981454,
     "admins": [
         "yoozenji",
         "shayklos",
@@ -13,6 +13,7 @@
     "BASE_USER_URL": "xxx",
     "BASE_ROUNDS_URL": "xxx",
     "LIVEINFO_URL": "xxx",
+    "gatherDataRefreshRate": 30,
     "dbDaysLimit": 30,
     "embedPageSize": 20,
     "botTimeout": 120,

@@ -3,7 +3,7 @@ import json
 with open("files/settings.json", "r") as file:
     data = json.load(file)
 
-
+gatherDataRefreshRate         = data.get("gatherDataRefreshRate") if data.get("gatherDataRefreshRate")                 else 30
 dbDaysLimit                   = data.get("dbDaysLimit") if data.get("dbDaysLimit")                                     else 30
 embedPageSize                 = data.get("embedPageSize") if data.get("embedPageSize")                                 else 20  
 botTimeout                    = data.get("botTimeout") if data.get("botTimeout")                                       else 120  
