@@ -8,8 +8,8 @@ import aiosqlite
 
 developerMode = False
 
-load_dotenv()
-TOKEN = getenv('DISCORD_TOKEN')
+load_dotenv() 
+TOKEN = getenv('DISCORD_TOKEN') if not developerMode else getenv('DISCORD_TEST_TOKEN')
 GUILD_ID = getenv('DISCORD_GUILD_ID')
 
 class CultrisBot(commands.Bot):
