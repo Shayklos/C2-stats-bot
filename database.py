@@ -35,7 +35,7 @@ async def add_new_rounds(db: aiosqlite.Connection):
                 empty = True
                 break
 
-            query1 = "insert into Matches values (?, ?, ?, ?, ?)"
+            query1 = "insert into Matches values (?, ?, ?, ?, ?, ?)"
             query2 = "insert into Rounds values (?,?,?,?,?,?,?,?,?,?,?)"
             parameters1, parameters2 = [], []
             for round in data:
@@ -43,6 +43,7 @@ async def add_new_rounds(db: aiosqlite.Connection):
                     round.get("roundId"), 
                     datetime.strptime(round.get('start')[:-1].split('.')[0], timeformat), #ignoring ms
                     round.get("ruleset"), 
+                    len(round.get("players")), #roomsize
                     round.get("speedLimit"),
                     round.get("isOfficial")
                 )
@@ -102,10 +103,6 @@ async def delete_old_data(db: aiosqlite.Connection, days=30):
 async def process_data(db: aiosqlite.Connection, oldRound, newRound):
     """
     Takes all the rounds between oldRound and newRound. Adds data to the database.
-
-    rounds element example
-    ["roundId","userId","name","got","sent","blocked","blocks", "maxCombo", "playDuration", "team"]
-    (12421684,  None,   'guest', 25,    47,     14,       78,         10,        39.1243,      None), 
     """
 
     rounds = await db.execute("select * from rounds where roundId between ? and ?", (oldRound, newRound))
@@ -317,8 +314,8 @@ async def update_userlist(db: aiosqlite.Connection):
     res = await db.execute("select max(userId) from Users")
     row = await res.fetchone()
     id = row[0] + 1
-   
     #TODO this is like uber bad practice, basically waiting for error connecting with the api to determine no more users left to add
+    #TODO more importantly there could be holes in the way, which could make the userlist never update
     while True:
         url = BASE_USER_URL+str(id)
         try:
