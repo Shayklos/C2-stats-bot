@@ -19,3 +19,6 @@ Discord bot that displays Cultris II stats.
 - /rounds command for a player rounds
 - in /online : if all players in a room are afk, these players wont be displayed
 - in /leaderboard : Power leaderboard is using the approximate formula
+- in /stats [Combo Spread] : maybe add a % next to count
+- in /stats : Maybe last hour stats?
+- aiohttp 
