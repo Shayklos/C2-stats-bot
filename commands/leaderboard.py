@@ -88,6 +88,12 @@ class LeaderboardView(CultrisView):
                 description=methods.getPage(page, data, pageSize = pageSize)
                 title=f"Power ({days} days)"
 
+            case 'Efficiency':
+                data = await database.getPPB(self.bot.db, days=days)
+                page = 1 if pageSize*(page - 1) > len(data) else page
+                description=methods.getPage(page, data, pageSize = pageSize)
+                title=f"Efficiency ({days} days)"
+
             case other:
                 return None, None
         
@@ -237,6 +243,7 @@ class Leaderboard(commands.Cog):
             'Sent lines',
             'Time played',
             'Power',
+            'Efficiency',
         ])
         return [
             app_commands.Choice(name=stat, value=stat)

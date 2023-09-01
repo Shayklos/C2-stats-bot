@@ -55,7 +55,11 @@ class StatsView(CultrisView):
 
                 embed.add_field(name="Max BPM", value=round(timeStats["bestBPM"], 1), inline=True)
                 embed.add_field(name="Avg BPM", value=round(timeStats["avgBPM"], 1), inline=True)
+                embed.add_field(name="", value="", inline=True)
+
                 embed.add_field(name="Power", value=round(timeStats['power'], 1), inline=True)
+                embed.add_field(name="Efficiency", value=f"{timeStats['powerperblock']:.1f}%", inline=True)
+                embed.add_field(name="", value="", inline=True)
             else:
                 embed.add_field(name="Minutes played", value="0", inline=True)
             
@@ -97,6 +101,7 @@ class StatsView(CultrisView):
 
         embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{player['gravatarHash']}?d=https://i.imgur.com/Gms07El.png")
         return embed
+
 
     async def createComboEmbed(self, userId, days):
         spread = await database.userComboSpread(self.bot.db, userId, days)

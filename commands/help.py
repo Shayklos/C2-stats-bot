@@ -52,7 +52,31 @@ For other roomsizes, the following formula is used:
 `37.8883647435868 * OPM/(3*roomsize + 29.4)`
 
 Power can be interpreted as average OPM, if a player had played only 1v1s.
-Power shown in `/stats` and `/leaderboard Power-2` is the average achieved in the range selected, not counting roomsize = 1."""
+Power shown in `/stats` and `/leaderboard Power` is the average achieved in the range selected, not counting roomsize = 1.""",
+                                        'Efficiency' :
+"""
+Efficiency is Power per block. It could be interpreted as the amount of lines a player sends and blocks per block, if all matches were played on 1v1. 
+It's calculated using the following table:
+```
+roomsize: value
+2: 37.8883647435868, 
+3: 35.4831455255647, 
+4: 40.1465889629567, 
+5: 44.2602184213111, 
+6: 48.575338292518, 
+7: 50.649550305342, 
+8: 51.9969119509592, 
+9: 56.306414280463
+```
+with the following formula:
+`37.8883647435868 * OPB / roomsize_value`
+
+For other roomsizes, the following formula is used:
+`37.8883647435868 * OPB/(3*roomsize + 29.4)`
+
+Efficiency shown in `/stats` and `/leaderboard Efficiency` is the average achieved in the range selected, not counting roomsize = 1.
+
+"""
 }
 
 ABOUTS = list(HELP) #keys of the dictionary       
