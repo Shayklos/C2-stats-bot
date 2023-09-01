@@ -36,7 +36,7 @@ async def add_new_rounds(db: aiosqlite.Connection):
                 break
 
             query1 = "insert into Matches values (?, ?, ?, ?, ?, ?)"
-            query2 = "insert into Rounds values (?,?,?,?,?,?,?,?,?,?,?)"
+            query2 = "insert into Rounds values (?,?,?,?,?,?,?,?,?,?,?,?)"
             parameters1, parameters2 = [], []
             for round in data:
                 round_param1 = (
@@ -50,10 +50,12 @@ async def add_new_rounds(db: aiosqlite.Connection):
                 parameters1.append(round_param1)
                 
                 players = round.get("players")
+                place = 1
                 for player in players:
                     params2 = (round.get("roundId"),
                     player.get("userId"),
                     player.get("guestName"),
+                    place,
                     player.get("linesGot"),
                     player.get("linesSent"),
                     player.get("linesBlocked"),
@@ -63,6 +65,7 @@ async def add_new_rounds(db: aiosqlite.Connection):
                     player.get("team"),
                     player.get("cheeseRows"),
                     )
+                    place += 1
                     parameters2.append(params2)
                 
                 count += 1
@@ -532,6 +535,7 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
             "bestCombo" : bestCombo,
             "bestBPM" : bestBPM,
             "power": power/(played-roomsize1),
+            "powerperblock": 100*power/blocks
         }
     except ZeroDivisionError: #Player has barely played
         return{
@@ -547,6 +551,7 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
             "bestCombo" : 0,
             "bestBPM" : 0,
             "power": 0,
+            "powerperblock": 0
         }
 
 
@@ -1104,7 +1109,8 @@ async def refresh_rankings(db: aiosqlite.Connection, refresh_limit: int):
 if __name__ == "__main__":
     async def main():
         db = await aiosqlite.connect(r"files\cultris.db")
-        cheese = await userComboSpread(db,5840)
+        db.row_factory = aiosqlite.Row
+        cheese = await time_based_stats(db,5840)
         print(cheese)
 
     asyncio.run(main())
