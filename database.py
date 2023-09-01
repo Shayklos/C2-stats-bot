@@ -483,16 +483,20 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
                         from 
                     Rounds join Matches 
                         on Rounds.roundId = Matches.roundId 
-                            join (select roundId, count(roundId) as roomsize, userId as winner from Rounds group by roundId) x 
+                           join (select roundId, userId as winner from Rounds group by roundId) x 
                         on x.roundId=Rounds.roundId 
                         
-                        where start > ? and userId = ? and playDuration and ruleset = 0""", (date, userId))
+                        where start > ? and 
+                              userId = ? and 
+                              playDuration and 
+                              ruleset = 0""", (date, userId))
 
-    played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = powerv2 = 0
+    played = winned = bestBPM = bestCombo = comboSum = blocks = sent = blocked = got = playedTime = power = roomsize1 = 0
     
     async for round in rounds:
         played += 1
         if round["roomsize"] == 1:
+            roomsize1 += 1
             winned += 1
             continue 
 
@@ -508,11 +512,9 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
         blocked     += round["linesBlocked"]
         got         += round["linesGot"]
         if powerTable.get(round["roomsize"]):
-            power +=  1800*(round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*powerTable.get(round["roomsize"]))
-            powerv2 += powerTable.get(2) * 60 * (round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*powerTable.get(round["roomsize"]))
+            power += powerTable.get(2) * 60 * (round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*powerTable.get(round["roomsize"]))
         else:
-            power +=  600*(round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*(round["roomsize"] + 9.8))
-            powerv2 += powerTable.get(2) * 60 * (round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*(3*round["roomsize"] + 29.4))
+            power += powerTable.get(2) * 60 * (round["linesSent"] + round["linesBlocked"])/(round["playDuration"]*(3*round["roomsize"] + 29.4))
     
     playedTime /= 60 #minutes 
 
@@ -530,8 +532,7 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
             "played" : played,
             "bestCombo" : bestCombo,
             "bestBPM" : bestBPM,
-            "power": power/played,
-            "powerv2": powerv2/played
+            "power": power/(played-roomsize1),
         }
     except ZeroDivisionError: #Player has barely played
         return{
@@ -547,7 +548,6 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
             "bestCombo" : 0,
             "bestBPM" : 0,
             "power": 0,
-            "powerv2": 0
         }
 
 
@@ -972,48 +972,61 @@ async def getBlockedPercent(db: aiosqlite.Connection, days = 7, requiredMatches 
 
     return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm]
 
-async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
+async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
+    def power(roomsize, opm):
+        #without multiplying by 37.88... first. it'll be multiplied at the end (small optimization)
+        if 1 < roomsize < 10:
+            return opm/powerTable.get(roomsize)
+        else:
+            return opm/(3*roomsize + 29.4)
+
     if days == 1:
         requiredMatches //= 4
     elif days == 2:
         requiredMatches //=3
     #normalized opm
     date_now = datetime.now(tz = timezone('UTC'))
-    cur = await db.execute(
-        """select users.userId, name, round(avg(powerStat),1) as power, count(roundId) as playedmatches from (
-            with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
-            select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
-            ) t
-            join users on users.userid= t.userid
-            group by users.userId having playedmatches>? order by power desc
-        """,
-        (date_now-timedelta(days=days),requiredMatches))
+
+    PowerDict = dict()
+    UsersDict = dict() #Might be worth to keep track of Userid-username via db
+    query = db.execute("""
+        select roomsize, 
+            Users.userId,
+            name, 
+            60*(rounds.linesSent + rounds.linesBlocked)/playDuration as OPM 
+            from Rounds join Users   on Rounds.UserId = Users.userId 
+                        join Matches on Matches.roundId = Rounds.roundId 
+            where ruleset = 0 and 
+                  roomsize > 1 and
+                  playDuration and 
+                  start > ?
+""", (date_now-timedelta(days=days),))
     
-    power = await cur.fetchall()
+    async with query as rounds:
+        async for round in rounds:
+            if round["OPM"] is None: #meaning playDuration is 0
+                continue
+
+            if PowerDict.get(round["userId"]):
+                PowerDict[round["userId"]].append(power(round["roomsize"],round["OPM"]))
+            else:
+                PowerDict[round["userId"]] = [power(round["roomsize"],round["OPM"])]
+                UsersDict[round["userId"]] = round["name"]
     
-    return [(combo[0], combo[1], f"**{combo[2]}** in {combo[3]} matches" ) for combo in power]
+
+    return [(x[0], x[1], f"**{x[2]:.1f}** in {x[3]} matches") for x in 
+        sorted([
+        (player,
+        UsersDict[player],
+        powerTable.get(2)*sum(PowerDict[player])/len(PowerDict[player]),
+        len(PowerDict[player])
+        )             
+             for player in PowerDict], 
+          key=lambda x: x[2], reverse=True)
+    ]
 
 
-async def getPower2(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesBlockedPercent):
-    if days == 1:
-        requiredMatches //= 4
-    elif days == 2:
-        requiredMatches //=3
-    #normalized opm
-    date_now = datetime.now(tz = timezone('UTC'))
-    cur = await db.execute(
-        """select users.userId, name, avg(powerStat) as power, count(roundId) as playedmatches from (
-            with MatchRoomsizes as (select start, Rounds.roundId, count(Rounds.roundId) as roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 0 and start > ? group by Rounds.roundId)
-            select Rounds.roundID, userId, 600*(linesSent+linesBlocked)/(playDuration * (roomsize + 9.8)) as powerstat from MatchRoomsizes join Rounds on MatchRoomsizes.roundId = Rounds.roundId
-            ) t
-            join users on users.userid= t.userid
-            group by users.userId having playedmatches>? order by power desc
-        """,
-        (date_now-timedelta(days=days),requiredMatches))
-    
-    power = await cur.fetchall()
-    
-    return [(combo[0], combo[1], f"**{37.8883647435868/30*combo[2]:.1f}** in {combo[3]} matches" ) for combo in power ]
+
 
 async def userCheeseTimes(db: aiosqlite.Connection, userId, days=7, limit = 20):
     date_now = datetime.now(tz = timezone('UTC'))
