@@ -15,10 +15,8 @@ Discord bot that displays Cultris II stats.
 - Go through all functions and place try: except:s appropiately
 - (in database.py) check if any queries break when userId or similar is null
 - Safe way of closing the bot
-- in /stats : toggle button between PC view (aligned embed) and Phone embed (disaligned embed but readable in phone)
-- /rounds command for a player rounds
-- in /online : if all players in a room are afk, these players wont be displayed
-- in /leaderboard : Power leaderboard is using the approximate formula
-- in /stats [Combo Spread] : maybe add a % next to count
-- in /stats : Maybe last hour stats?
+- `/rounds` command for a player rounds
+- in `/online` : if all players in a room are afk, these players wont be displayed
+- in `/stats` : Maybe last hour stats?
 - aiohttp 
+- setting for required matches in `/leaderboard Power`
