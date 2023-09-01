@@ -14,7 +14,8 @@ class StatsView(CultrisView):
     def __init__(self, bot, author, userId, days):
         super().__init__(bot=bot, author=author)
         self.command = '/stats'
-        
+        self.desktop = True
+
         self.userId = userId
         self.days = days
         self.state = 0 #0: stats. 1: cheese. 2: combo
@@ -65,42 +66,65 @@ class StatsView(CultrisView):
     async def createCheeseEmbed(self, userId, days):
         cheese = await database.userCheeseTimes(self.bot.db, userId, days)
         player = self.player
-        place = 1
-        places = ""
-        times = ""
-        bpms = ""
-        for time, bpm in cheese:
-            places += f"{str(place)}\n"
-            times += f"{str(time)}\n"
-            bpms += f"{str(bpm)}\n"
-            place += 1
 
         embed = discord.Embed(
-            title=f"Cheese times of {player['name']} ({days}d)",
-            color=0xFFFF70,
-        )
-        embed.add_field(name='Rank', value=places)
-        embed.add_field(name='Time', value=times)
-        embed.add_field(name='BPM', value=bpms)
+                title=f"Cheese times of {player['name']} ({days}d)",
+                color=0xFFFF70,
+            )
+
+        if self.desktop:
+            place = 1
+            places = ""
+            times = ""
+            bpms = ""
+            for time, bpm in cheese:
+                places += f"{str(place)}\n"
+                times += f"{str(time)}\n"
+                bpms += f"{str(bpm)}\n"
+                place += 1
+
+            
+            embed.add_field(name='Rank', value=places)
+            embed.add_field(name='Time', value=times)
+            embed.add_field(name='BPM', value=bpms)
+        else:
+            place = 1
+            description = ""
+            for run in cheese:
+                description += f"{place}. **{run[0]}** at {run[1]} BPM\n"
+            
+            embed.description = description
+
         embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{player['gravatarHash']}?d=https://i.imgur.com/Gms07El.png")
         return embed
-            
 
     async def createComboEmbed(self, userId, days):
         spread = await database.userComboSpread(self.bot.db, userId, days)
         player = self.player
-        combos = ""
-        counts = ""
-        for combo, count in spread:
-            combos += f"{str(combo)}\n"
-            counts += f"{str(count)}\n"
-
+        total = sum([x[1] for x in spread])
+        
         embed = discord.Embed(
             title=f"Combo spread of {player['name']} ({days}d)",
             color=0xFF0000,
         )
-        embed.add_field(name='Combo', value=combos)
-        embed.add_field(name='Count', value=counts)
+        if self.desktop:
+            combos = ""
+            counts = ""
+            percentages = ""
+            for combo, count in spread:
+                combos += f"{combo}\n"
+                counts += f"{count}\n"
+                percentages += f"{100*count/total:.1f} %\n"
+
+            embed.add_field(name='Combo', value=combos)
+            embed.add_field(name='Count', value=counts)
+            embed.add_field(name='%', value=percentages)
+        else:
+            description = ""
+            for combo in spread:
+                description += f"{combo[0]}: {combo[1]} ({100*combo[1]/total:.1f} %)\n"
+
+            embed.description = description
         embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{player['gravatarHash']}?d=https://i.imgur.com/Gms07El.png")
         return embed
 
@@ -183,6 +207,17 @@ class StatsView(CultrisView):
         button.disabled = True
         self.enable_buttons(["Round stats", "Cheese times"])
 
+        await self.editEmbed(interaction)
+
+    @discord.ui.button(label="Phone view", row=2, style = discord.ButtonStyle.primary, emoji = "\U0001F4BB") 
+    async def phonedesktoptoggle(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
+        button.label = "Desktop view" if button.label == "Phone view" else "Phone view"
+
+        button.emoji = "\U0001F4BB" if button.emoji == "\U0001f4f1" else "\U0001f4f1"
+        print(button.emoji)
+        print(str(button.emoji)== "\U0001f4f1")
+        self.desktop = False if self.desktop else True
         await self.editEmbed(interaction)
 
 
