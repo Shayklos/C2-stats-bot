@@ -69,7 +69,6 @@ async def add_new_rounds(db: aiosqlite.Connection):
                     
             await db.executemany(query1,parameters1)
             await db.executemany(query2,parameters2)
-            await db.commit()
             roundN += 1000
         except Exception as e:
             print(e)
@@ -1103,5 +1102,9 @@ async def refresh_rankings(db: aiosqlite.Connection, refresh_limit: int):
 
 
 if __name__ == "__main__":
-    db = sqlite3.connect(r"files\cultris.db")
-    print(getPlayersOnline())
+    async def main():
+        db = await aiosqlite.connect(r"files\cultris.db")
+        cheese = await userComboSpread(db,5840)
+        print(cheese)
+
+    asyncio.run(main())
