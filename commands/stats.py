@@ -47,18 +47,18 @@ class StatsView(CultrisView):
 
                 embed.add_field(name="Best Combo", value=round(timeStats["bestCombo"], 1), inline=True)
                 embed.add_field(name="Avg Combo", value=round(timeStats["avgCombo"], 1), inline=True)
-                embed.add_field(name="Avg SPM", value=round(timeStats["avgSPM"], 1), inline=True)
+                embed.add_field(name="SPM", value=round(timeStats["spm"], 1), inline=True)
 
-                embed.add_field(name="Blocked%", value=f"{timeStats['blockedpercent']:.1f}%", inline=True)
-                embed.add_field(name="Avg OPB", value=f"{timeStats['outputperpiece']:.1f}%", inline=True)
-                embed.add_field(name="Avg OPM", value=round(timeStats["outputperminute"], 1), inline=True)
+                embed.add_field(name="Blocked%", value=f"{timeStats['blocked%']:.1f}%", inline=True)
+                embed.add_field(name="OPB", value=f"{timeStats['opb']:.1f}%", inline=True)
+                embed.add_field(name="OPM", value=round(timeStats["opm"], 1), inline=True)
 
                 embed.add_field(name="Max BPM", value=round(timeStats["bestBPM"], 1), inline=True)
-                embed.add_field(name="Avg BPM", value=round(timeStats["avgBPM"], 1), inline=True)
+                embed.add_field(name="BPM", value=round(timeStats["bpm"], 1), inline=True)
                 embed.add_field(name="", value="", inline=True)
 
                 embed.add_field(name="Power", value=round(timeStats['power'], 1), inline=True)
-                embed.add_field(name="Efficiency", value=f"{timeStats['powerperblock']:.1f}%", inline=True)
+                embed.add_field(name="Efficiency", value=f"{timeStats['ppb']:.1f}%", inline=True)
                 embed.add_field(name="", value="", inline=True)
             else:
                 embed.add_field(name="Minutes played", value="0", inline=True)
