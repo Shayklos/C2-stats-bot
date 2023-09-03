@@ -1042,6 +1042,19 @@ async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
     ]
 
 
+async def getPowerB(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
+    def power(roomsize, opm):
+        #without multiplying by 37.88... first. it'll be multiplied at the end (small optimization)
+        if 1 < roomsize < 10:
+            return opm/powerTable.get(roomsize)
+        else:
+            return opm/(3*roomsize + 29.4)
+
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //=3
+    #normalized opm
 async def getPPB(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
     def ppb(roomsize, opb):
         #without multiplying by 37.88... first. it'll be multiplied at the end (small optimization)
