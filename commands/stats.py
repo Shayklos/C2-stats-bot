@@ -25,52 +25,62 @@ class StatsView(CultrisView):
             timeStats = await database.time_based_stats(self.bot.db, userId, days=days)
             player = self.player
             netscore, netscoreDays = await database.getNetscore(self.bot.db, userId, days=days)
-            embed = discord.Embed(
+
+            fields = (
+                ["Rank - Score",     "Recorded Peak",   "Netscore"],
+                ("Minutes played",   "Games",           "Winrate"),
+                ("Best Combo",       "Avg Combo",       "SPM"),
+                ("Blocked%",         "OPB",             "OPM"),
+                ("Max BPM",          "BPM",             ""),
+                ("Power",            "Efficiency",      ""),
+            )
+            
+            values = dict()
+            if player["rank"]:
+                values["Rank - Score"] = f"{player['rank']} ({player['score']:.1f})"
+                values["Recorded Peak"] = f"{player['peakRank']} ({player['peakRankScore']:.1f})"
+                
+                if netscoreDays:
+                    if netscoreDays == days:
+                        values['Netscore'] = round(player['score'] - netscore,1)
+                    else:
+                        values[f'Netscore ({netscoreDays}d)'] = round(player['score'] - netscore,1)
+                        fields[0][2] = f'Netscore ({netscoreDays}d)'
+
+            if timeStats["played"]:
+                values["Minutes played"] = f"{timeStats['mins']:.1f}m"
+                values["Games"] = timeStats["played"]
+                values["Winrate"] = f"{timeStats['winrate']:.1f}%"
+                values["Best Combo"] = round(timeStats["bestCombo"], 1)
+                values["Avg Combo"] = round(timeStats["avgCombo"], 1)
+                values["SPM"] = round(timeStats["spm"], 1)
+                values["Blocked%"] = f"{timeStats['blocked%']:.1f}%"
+                values["OPB"] = f"{timeStats['opb']:.1f}%"
+                values["OPM"] = round(timeStats["opm"], 1)
+                values["Max BPM"] = round(timeStats["bestBPM"], 1)
+                values["BPM"] = round(timeStats["bpm"], 1)
+                values["Power"] = round(timeStats['power'], 1)
+                values["Efficiency"] = f"{timeStats['ppb']:.1f}%"
+            else:
+                values["Minutes played"] = "0"
+            
+            
+            return self.embed(
+                fields, values,
+                embed = discord.Embed(
                     title=player["name"],
                     color=0x0B3C52,
                     url=f"https://gewaltig.net/ProfileView/{userId}",
                     description=f"{days} days stats:"
+                ),
+                thumbnail = f"https://www.gravatar.com/avatar/{player['gravatarHash']}?d=https://i.imgur.com/Gms07El.png"
                 )
-            if player["rank"]:
-                embed.add_field(name="Rank - Score", value=f"{player['rank']}     ({player['score']:.1f})", inline=True)
-                embed.add_field(name="Recorded Peak", value=f"{player['peakRank']}     ({player['peakRankScore']:.1f})", inline=True)
-                if netscoreDays:
-                    if netscoreDays == days:
-                        embed.add_field(name = 'Netscore', value = round(player['score'] - netscore,1))
-                    else:
-                        embed.add_field(name = f'Netscore ({netscoreDays}d)', value = round(player['score'] - netscore,1))
-
-            if timeStats["played"]:
-                embed.add_field(name="Minutes played", value=f"{timeStats['mins']:.1f}m", inline=True)
-                embed.add_field(name="Games", value=timeStats["played"], inline=True)
-                embed.add_field(name="Winrate", value=f"{timeStats['winrate']:.1f}%", inline=True)
-
-                embed.add_field(name="Best Combo", value=round(timeStats["bestCombo"], 1), inline=True)
-                embed.add_field(name="Avg Combo", value=round(timeStats["avgCombo"], 1), inline=True)
-                embed.add_field(name="SPM", value=round(timeStats["spm"], 1), inline=True)
-
-                embed.add_field(name="Blocked%", value=f"{timeStats['blocked%']:.1f}%", inline=True)
-                embed.add_field(name="OPB", value=f"{timeStats['opb']:.1f}%", inline=True)
-                embed.add_field(name="OPM", value=round(timeStats["opm"], 1), inline=True)
-
-                embed.add_field(name="Max BPM", value=round(timeStats["bestBPM"], 1), inline=True)
-                embed.add_field(name="BPM", value=round(timeStats["bpm"], 1), inline=True)
-                embed.add_field(name="", value="", inline=True)
-
-                embed.add_field(name="Power", value=round(timeStats['power'], 1), inline=True)
-                embed.add_field(name="Efficiency", value=f"{timeStats['ppb']:.1f}%", inline=True)
-                embed.add_field(name="", value="", inline=True)
-            else:
-                embed.add_field(name="Minutes played", value="0", inline=True)
-            
-            embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{player['gravatarHash']}?d=https://i.imgur.com/Gms07El.png")
-            return embed
 
 
     async def createCheeseEmbed(self, userId, days):
         cheese = await database.userCheeseTimes(self.bot.db, userId, days)
         player = self.player
-
+        
         embed = discord.Embed(
                 title=f"Cheese times of {player['name']} ({days}d)",
                 color=0xFFFF70,

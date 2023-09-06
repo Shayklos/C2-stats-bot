@@ -48,3 +48,29 @@ class CultrisView(discord.ui.View):
     def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
         log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
 
+    
+    def embed(self, list, values, title = None, thumbnail = None, embed: discord.Embed = None):
+        """
+        Utility function for making discord embeds while previewing the position of its fields on `list`
+        """
+        if not embed:
+            embed = discord.Embed(
+                title = title,
+                color = 0x0B3C52,
+            )
+
+        for line in list:
+            for element in line:
+                if element == "":
+                    embed.add_field(name = "", value = "")
+                    continue
+
+                if values.get(element) is None:
+                    continue
+
+                embed.add_field(name = element, value = values[element])
+
+        if thumbnail:
+            embed.set_thumbnail(url = thumbnail)
+
+        return embed
