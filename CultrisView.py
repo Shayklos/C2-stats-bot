@@ -30,7 +30,7 @@ class CultrisView(discord.ui.View):
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any]) -> None:
         print(error)
-        await interaction.user.send("Something went horribly wrong. Uh oh.")
+        await interaction.user.send("Something went horribly wrong. Uh oh. Please report it to `shayklos` on Discord!")
     
 
     def enable_buttons(self, list):
