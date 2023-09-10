@@ -3,12 +3,16 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui.item import Item
 from typing import Any
+import asyncio
+import csv
+from pytz import timezone
+from datetime import datetime
 import sys
 sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
-from settings import powerTable
+from settings import powerTable, admins
 
 class RoundsView(CultrisView):
 
@@ -17,97 +21,160 @@ class RoundsView(CultrisView):
         self.command = '/rounds'
         
         self.interactionUser = author
-        self.user = user 
+        self.cultrisUsername = user 
         self.userId = userId
         self.page = 0
     
 
-    async def generate_data(self):
-        def maxcolumn(i, l):
-            return max([len(e[i]) for e in l])
+    def codeblocksFormat(self, lines: list[list[str]], header: list[str] = None, spacing: int = 3):
+        """
+        Transforms a list of values into an aligned text table, assuming that the font used is monospaced
+        """
+        page = [header, *lines] if header else lines
         
-        query = self.bot.db.execute("""select 
-        start,
-        place,
-        roomsize,
-        linesGot as got,
-        linesSent as sent,
-        linesBlocked as blocked,
-        blocks,
-        maxCombo as cmb,
-        playDuration as time, 
-        ruleset,
-        cheeserows,
-        team
+        alignPoints = []
+        for i in range(len(header)):
+            alignPoints.append(
+                max([len(line[i]) for line in page]) # biggest value in column i, used for aligning purposes
+            )
+            
+        lineColorToggle = True
+        result = "```diff\n"
+        for line in page: 
+            result += '+' if lineColorToggle else '-' #The purpose of these is to be easier for the human eye to read, as they change the color of a whole line
+            lineColorToggle = not lineColorToggle
+            for i, element in enumerate(line):
+                if element[-1] == '\n':
+                    result += element
+                else:
+                    result += element + " "*(alignPoints[i] - len(element) + spacing)
+
+        return result + "```"
 
 
-    from rounds join matches on rounds.roundid=matches.roundid where userid = ? order by start desc""", (self.userId,))
+    async def generate_data(self, download = False):
+        multiplier = {i : powerTable.get(2)/powerTable.get(i) for i in range(2,10)}
+
+        query = self.bot.db.execute("""
+            select 
+                start,
+                place,
+                roomsize,
+                linesGot as got,
+                linesSent as sent,
+                linesBlocked as blocked,
+                blocks,
+                maxCombo as cmb,
+                playDuration as time, 
+                ruleset,
+                cheeserows,
+                team
+        from rounds join matches on rounds.roundid=matches.roundid 
+        where userid = ? 
+        order by start desc""", (self.userId,))
 
         header = ["Start","Place","BPM","Cmb","Power","Effi.", "SPM","OPM","Block%","Time\n"]
-        lines = [header]
+        lines = []
         pages = []
+        if download:
+            # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
+                        # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration
+            data = [
+                ['Start', 'Place', 'Roomsize', 'maxCombo', 'blocksPlaced', 
+                'linesSent', 'linesBlocked', 'linesGot', 'Blocked%', 'BPM', 
+                'SPM','SPB','OPM','OPB','Power','Efficiency',
+                'playDuration']
+            ]
         count = 0
-        diff = 1
         async with query as rounds:
             async for round in rounds: 
-                try:
-                    if 1<round["roomsize"]<10:
-                        power = powerTable.get(2) * 60*(round['sent']+round['blocked'])/(round['time'] * powerTable.get(round["roomsize"]))
-                        ppb = powerTable.get(2) * 60*(round['sent']+round['blocked'])/(round['blocks'] * powerTable.get(round["roomsize"]))
-                    else:
-                        power = powerTable.get(2) * 60*(round['sent']+round['blocked'])/(round['time'] * (3*powerTable.get(round["roomsize"]) + 29.4))
-                        ppb = powerTable.get(2) * 60*(round['sent']+round['blocked'])/(round['blocks'] * (3*powerTable.get(round["roomsize"]) + 29.4))
+                output = round["sent"] + round["blocked"]
 
-                    lines.append([round['start'][5:16],
-                        f"{round['place']}/{round['roomsize']}",
-                        f"{60*round['blocks']/round['time']:.1f}",
-                        f"{round['cmb']}",
-                        f"{power:.1f}",
-                        f"{ppb:.1f}%",
-                        f"{60*round['sent']/round['time']:.1f}",
-                        f"{60*(round['sent']+round['blocked'])/round['time']:.1f}",
-                        f"{100*round['blocked'] / round['got']:.1f}",
-                        f"{round['time']:.1f}\n"
+                if not round["blocks"] or not round["time"]:
+                    continue
+
+                if 1<round["roomsize"]<10:
+                    power = 60  * multiplier[round["roomsize"]] * output / round["time"]
+                    ppb   = 100 * multiplier[round["roomsize"]] * output / round["blocks"]
+                else:
+                    power = 60  * powerTable.get(2) * output/(round['time']   * (3*round["roomsize"] + 29.4))
+                    ppb   = 100 * powerTable.get(2) * output/(round['blocks'] * (3*round["roomsize"] + 29.4))
+
+                blocked   = 100 * round['blocked']/round['got'] if round['got'] else 0
+
+                lines.append([
+                    #["Start","Place","BPM","Cmb","Power","Effi.", "SPM","OPM","Block%","Time\n"]
+                    round['start'][5:],
+                    f"{round['place']}/{round['roomsize']}",
+                    f"{60 * round['blocks']/round['time']:.1f}",
+                    f"{round['cmb']}",
+                    f"{power:.1f}",
+                    f"{ppb:.1f}%",
+                    f"{60 * round['sent']/round['time']:.1f}",
+                    f"{60 * output /round['time']:.1f}",
+                    f"{blocked:.1f}%",
+                    f"{round['time']:.1f}\n"
+                ])
+                if download:
+                    data.append([
+                        # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
+                        # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration
+                        round["start"],
+                        round['place'],
+                        round['roomsize'],
+                        round['cmb'],
+                        round['blocks'],
+                        round['sent'],
+                        round['blocked'],
+                        round['got'],
+                        blocked,
+                        60 * round['blocks']/round['time'],
+                        60 * round['sent']/round["time"],
+                        100 * round['sent']/round['blocks'],
+                        60 * output/round["time"],
+                        100 * output/round['blocks'],
+                        power,
+                        ppb,
+                        round['time']
                     ])
-                    count += 1
-                except:
-                    pass
+                count += 1
                 
-                if count%20==0:
-                    result = "```diff\n"
-                    for line in lines: 
-                        if diff == 1:
-                            result += '+'
-                            diff *= -1
-                        else:
-                            result += '-'
-                            diff *= -1
-                        for i, element in enumerate(line):
-                            if element[-1] != '\n':
-                                result += element + " "*(maxcolumn(i, lines)-len(element)+3)
-                            else:
-                                result += element
+                if not download and not count%20:
+                    pages.append(self.codeblocksFormat(lines, header))
+                    lines = []
+        if download:
+            filename = f"files/userdata/{self.cultrisUsername}_{datetime.now(tz = timezone('UTC')).strftime('%Y_%m_%d')}.csv"
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f, delimiter = ';')
+                writer.writerows(data)
+            self.downloadable = discord.File(filename)
+            return
+        return pages 
+    
 
-                    pages.append(f"Rounds of {self.user}"+result+'```')
-                    lines = [header]
-                    diff = 1
-            return pages
-
-    @discord.ui.button(label="Page down", row = 1, style=discord.ButtonStyle.primary, emoji="⬅️") 
+    @discord.ui.button(label="Page down", row = 0, style=discord.ButtonStyle.primary, emoji="⬅️") 
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # self.logButton(interaction, button)
+        self.logButton(interaction, button)
         self.page -= 1
-        await interaction.response.edit_message(content = self.data[self.page+1],
+        await interaction.response.edit_message(content = f"Rounds of {self.cultrisUsername}" + self.data[self.page],
             view=self
             )
 
-    @discord.ui.button(label="Page up", row = 1, style=discord.ButtonStyle.primary, emoji="➡️") 
+    @discord.ui.button(label="Page up", row = 0, style=discord.ButtonStyle.primary, emoji="➡️") 
     async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # self.logButton(interaction, button)
+        self.logButton(interaction, button)
         self.page += 1
-        await interaction.response.edit_message(content = self.data[self.page+1],
+        await interaction.response.edit_message(content = f"Rounds of {self.cultrisUsername}" + self.data[self.page],
             view=self
             )
+        
+    @discord.ui.button(label="Download", row = 1, style=discord.ButtonStyle.primary, emoji="⬇️") 
+    async def download(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
+        button.disabled = True
+        await self.generate_data(download=True)
+        await interaction.channel.send(file = self.downloadable)
+        await interaction.response.edit_message(view = self)
 
 
  
@@ -117,10 +184,16 @@ class Rounds(commands.Cog):
         super().__init__()
         self.bot = bot 
 
+    def cooldown(interaction: discord.Interaction):
+        #One call every two minutes, Ignores cooldown for admins
+        if interaction.user.name in admins:
+            return None 
+        return app_commands.Cooldown(1, 120)
+
 
     @app_commands.command(description="Display round stats of a certain player.")
     @app_commands.describe(username='Ingame username of the player you\'re looking for. Leave empty to use your Discord display name.')
-    @app_commands.guild_only()
+    @app_commands.checks.dynamic_cooldown(cooldown, key = lambda i: (i.guild_id, i.user.id))
     async def rounds(self, interaction: discord.Interaction, username: str = None):
         #Verification
         correct = await methods.checks(interaction)
@@ -130,14 +203,21 @@ class Rounds(commands.Cog):
         if not username:
             username = interaction.user.display_name
 
-        ratio, userId, user = await database.fuzzysearch(self.bot.db, username.lower())
-        msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
+        ratio, userId, cultrisUsername = await database.fuzzysearch(self.bot.db, username.lower())
+        msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{cultrisUsername}\'?"
         
-        view = RoundsView(self.bot, interaction.user, user, userId)
+        view = RoundsView(self.bot, interaction.user, cultrisUsername, userId)
         view.data = await view.generate_data()
         
-        await interaction.response.send_message(view.data[0], view=view)
+        await interaction.response.send_message(f"Rounds of {cultrisUsername}" + view.data[0], view=view)
         view.message = await interaction.original_response()
+
+    
+    
+    @rounds.error #Cooldown handling
+    async def roundsError(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(f"/rounds can only be used once every 2 minutes! Try again in {int(error.retry_after)}s.", ephemeral=True)
         
 
 async def setup(bot: commands.Bot):
