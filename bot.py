@@ -39,6 +39,11 @@ intents.message_content = True
 
 cultrisBot = CultrisBot(intents = intents)
 
+@cultrisBot.command()
+async def ping(ctx):
+    await ctx.send(f"Average websocket latency: {round(cultrisBot.latency * 1000, 2)}ms")
+
+
 if __name__ == '__main__':
     if developerMode:
         print("DEVELOPER MODE")
