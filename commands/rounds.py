@@ -12,7 +12,7 @@ sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
-from settings import powerTable, admins
+from settings import powerTable, multiplier, admins
 
 class RoundsView(CultrisView):
 
@@ -52,9 +52,7 @@ class RoundsView(CultrisView):
         return result + "```"
 
 
-    async def generate_data(self, download = False):
-        multiplier = {i : powerTable.get(2)/powerTable.get(i) for i in range(2,10)}
-
+    async def generate_data(self):
         query = self.bot.db.execute("""
             select 
                 start,
@@ -65,10 +63,7 @@ class RoundsView(CultrisView):
                 linesBlocked as blocked,
                 blocks,
                 maxCombo as cmb,
-                playDuration as time, 
-                ruleset,
-                cheeserows,
-                team
+                playDuration as time 
         from rounds join matches on rounds.roundid=matches.roundid 
         where userid = ? 
         order by start desc""", (self.userId,))
@@ -76,15 +71,6 @@ class RoundsView(CultrisView):
         header = ["Start","Place","BPM","Cmb","Power","Effi.", "SPM","OPM","Block%","Time\n"]
         lines = []
         pages = []
-        if download:
-            # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
-                        # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration
-            data = [
-                ['Start', 'Place', 'Roomsize', 'maxCombo', 'blocksPlaced', 
-                'linesSent', 'linesBlocked', 'linesGot', 'Blocked%', 'BPM', 
-                'SPM','SPB','OPM','OPB','Power','Efficiency',
-                'playDuration']
-            ]
         count = 0
         async with query as rounds:
             async for round in rounds: 
@@ -115,42 +101,88 @@ class RoundsView(CultrisView):
                     f"{blocked:.1f}%",
                     f"{round['time']:.1f}\n"
                 ])
-                if download:
-                    data.append([
-                        # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
-                        # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration
-                        round["start"],
-                        round['place'],
-                        round['roomsize'],
-                        round['cmb'],
-                        round['blocks'],
-                        round['sent'],
-                        round['blocked'],
-                        round['got'],
-                        blocked,
-                        60 * round['blocks']/round['time'],
-                        60 * round['sent']/round["time"],
-                        100 * round['sent']/round['blocks'],
-                        60 * output/round["time"],
-                        100 * output/round['blocks'],
-                        power,
-                        ppb,
-                        round['time']
-                    ])
+                
                 count += 1
                 
-                if not download and not count%20:
+                if not count%20:
                     pages.append(self.codeblocksFormat(lines, header))
                     lines = []
-        if download:
-            filename = f"files/userdata/{self.cultrisUsername}_{datetime.now(tz = timezone('UTC')).strftime('%Y_%m_%d')}.csv"
-            with open(filename, 'w', newline='') as f:
-                writer = csv.writer(f, delimiter = ';')
-                writer.writerows(data)
-            self.downloadable = discord.File(filename)
-            return
+        print(3)
         return pages 
     
+
+    async def generate_downloadable(self):
+        #todo cheese rooms, ruleset dict, team dict, etc
+        query = self.bot.db.execute("""
+            select 
+                start,
+                place,
+                roomsize,
+                linesGot as got,
+                linesSent as sent,
+                linesBlocked as blocked,
+                blocks,
+                maxCombo as cmb,
+                playDuration as time, 
+                ruleset,
+                cheeserows,
+                team
+        from rounds join matches on rounds.roundid=matches.roundid 
+        where userid = ? 
+        order by start desc""", (self.userId,))
+
+        data = [
+                ['Start', 'Place', 'Roomsize', 'maxCombo', 'blocksPlaced', 
+                'linesSent', 'linesBlocked', 'linesGot', 'Blocked%', 'BPM', 
+                'SPM','SPB%','OPM','OPB%','Power','Efficiency%',
+                'playDuration']
+            ]
+        async with query as rounds:
+            async for round in rounds: 
+                output = round["sent"] + round["blocked"]
+
+                if not round["blocks"] or not round["time"]:
+                    continue
+
+                if 1<round["roomsize"]<10:
+                    power = 60  * multiplier[round["roomsize"]] * output / round["time"]
+                    ppb   = 100 * multiplier[round["roomsize"]] * output / round["blocks"]
+                else:
+                    power = 60  * powerTable.get(2) * output/(round['time']   * (3*round["roomsize"] + 29.4))
+                    ppb   = 100 * powerTable.get(2) * output/(round['blocks'] * (3*round["roomsize"] + 29.4))
+
+                blocked   = 100 * round['blocked']/round['got'] if round['got'] else 0
+
+                data.append([
+                    # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
+                    # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration
+                    round["start"],
+                    round['place'],
+                    round['roomsize'],
+                    round['cmb'],
+                    round['blocks'],
+                    round['sent'],
+                    round['blocked'],
+                    round['got'],
+                    blocked,
+                    60 * round['blocks']/round['time'],
+                    60 * round['sent']/round["time"],
+                    100 * round['sent']/round['blocks'],
+                    60 * output/round["time"],
+                    100 * output/round['blocks'],
+                    power,
+                    ppb,
+                    round['time'],
+
+                ])
+                
+        filename = f"files/userdata/rounds/{self.cultrisUsername}_{datetime.now(tz = timezone('UTC')).strftime('%Y_%m_%d')}.csv"
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f, delimiter = ';')
+            writer.writerows(data)
+        self.downloadable = discord.File(filename)
+        return
+
 
     @discord.ui.button(label="Page down", row = 0, style=discord.ButtonStyle.primary, emoji="⬅️") 
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -172,7 +204,7 @@ class RoundsView(CultrisView):
     async def download(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
         button.disabled = True
-        await self.generate_data(download=True)
+        await self.generate_downloadable()
         await interaction.channel.send(file = self.downloadable)
         await interaction.response.edit_message(view = self)
 
@@ -205,7 +237,7 @@ class Rounds(commands.Cog):
 
         ratio, userId, cultrisUsername = await database.fuzzysearch(self.bot.db, username.lower())
         msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{cultrisUsername}\'?"
-        
+
         view = RoundsView(self.bot, interaction.user, cultrisUsername, userId)
         view.data = await view.generate_data()
         
@@ -222,3 +254,22 @@ class Rounds(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Rounds(bot))
+
+
+if __name__ == "__main__":
+    import aiosqlite
+
+    async def main():
+        db = await aiosqlite.connect("files/cultrisTest.db")
+        db.row_factory = aiosqlite.Row
+        class Bot():
+            def __init__(self):
+                self.db = db
+
+        bot = Bot()
+        view = RoundsView(bot, 0, "Shay", 5840)
+        pages = await view.generate_data()
+
+        print(pages[0])
+
+    asyncio.run(main())
