@@ -45,3 +45,4 @@ class WeeklyBest(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(WeeklyBest(bot))
+    print(f"Loaded /weeklybest command.")

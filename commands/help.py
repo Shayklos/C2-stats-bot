@@ -108,6 +108,7 @@ class Help(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Help(bot))
+    print(f"Loaded /help command.")
     
 
 if __name__ == '__main__':

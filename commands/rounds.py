@@ -172,6 +172,7 @@ class RoundsView(CultrisView):
                     100 * output/round['blocks'],
                     power,
                     ppb,
+
                     round['time'],
 
                 ])
@@ -254,6 +255,7 @@ class Rounds(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Rounds(bot))
+    print(f"Loaded /rounds command.")
 
 
 if __name__ == "__main__":
