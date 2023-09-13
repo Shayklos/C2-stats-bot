@@ -16,6 +16,22 @@ from settings import powerTable, multiplier, admins
 
 class RoundsView(CultrisView):
 
+    teamDict = {
+        None: None,
+        0: "Red",
+        1: "Blue",
+        2: "Green",
+        3: "Yellow"
+        }
+    
+    rulesetDict = {
+        0: "Standard",
+        1: "Cheese",
+        2: "Survivor",
+        3: "Slowest Link",
+        4: "40 Lines"
+        }
+
     def __init__(self, bot, author, user, userId):
         super().__init__(bot=bot, author=author)
         self.command = '/rounds'
@@ -135,48 +151,107 @@ class RoundsView(CultrisView):
                 ['Start', 'Place', 'Roomsize', 'maxCombo', 'blocksPlaced', 
                 'linesSent', 'linesBlocked', 'linesGot', 'Blocked%', 'BPM', 
                 'SPM','SPB%','OPM','OPB%','Power','Efficiency%',
-                'playDuration']
+                'playDuration', 'Team', 'eatenCheese']
             ]
         async with query as rounds:
             async for round in rounds: 
-                output = round["sent"] + round["blocked"]
+                match round["ruleset"]:
+                    case 0: #Standard
+                        output = round["sent"] + round["blocked"]
 
-                if not round["blocks"] or not round["time"]:
-                    continue
+                        if not round["blocks"] or not round["time"]:
+                            continue
 
-                if 1<round["roomsize"]<10:
-                    power = 60  * multiplier[round["roomsize"]] * output / round["time"]
-                    ppb   = 100 * multiplier[round["roomsize"]] * output / round["blocks"]
-                else:
-                    power = 60  * powerTable.get(2) * output/(round['time']   * (3*round["roomsize"] + 29.4))
-                    ppb   = 100 * powerTable.get(2) * output/(round['blocks'] * (3*round["roomsize"] + 29.4))
+                        if 1<round["roomsize"]<10:
+                            power = 60  * multiplier[round["roomsize"]] * output / round["time"]
+                            ppb   = 100 * multiplier[round["roomsize"]] * output / round["blocks"]
+                        else:
+                            power = 60  * powerTable.get(2) * output/(round['time']   * (3*round["roomsize"] + 29.4))
+                            ppb   = 100 * powerTable.get(2) * output/(round['blocks'] * (3*round["roomsize"] + 29.4))
 
-                blocked   = 100 * round['blocked']/round['got'] if round['got'] else 0
+                        blocked   = 100 * round['blocked']/round['got'] if round['got'] else 0
 
-                data.append([
-                    # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
-                    # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration
-                    round["start"],
-                    round['place'],
-                    round['roomsize'],
-                    round['cmb'],
-                    round['blocks'],
-                    round['sent'],
-                    round['blocked'],
-                    round['got'],
-                    blocked,
-                    60 * round['blocks']/round['time'],
-                    60 * round['sent']/round["time"],
-                    100 * round['sent']/round['blocks'],
-                    60 * output/round["time"],
-                    100 * output/round['blocks'],
-                    power,
-                    ppb,
 
-                    round['time'],
+                        data.append([
+                            # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
+                            # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration, Team, Ruleset
+                            round["start"],
+                            round['place'],
+                            round['roomsize'],
+                            round['cmb'],
+                            round['blocks'],
+                            round['sent'],
+                            round['blocked'],
+                            round['got'],
+                            blocked,
+                            60 * round['blocks']/round['time'],
+                            60 * round['sent']/round["time"],
+                            100 * round['sent']/round['blocks'],
+                            60 * output/round["time"],
+                            100 * output/round['blocks'],
+                            power,
+                            ppb,
+                            round['time'],
+                            RoundsView.teamDict[round["team"]],
+                            RoundsView.teamDict[round["ruleset"]],
+                            round["cheeserows"]
 
-                ])
-                
+                        ])
+
+                    case 1 | 4: #Cheese | 40 Lines
+                        data.append([
+                            # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
+                            # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration, Team, Ruleset
+                            round["start"],
+                            round['place'],
+                            round['roomsize'],
+                            round['cmb'],
+                            round['blocks'],
+                            None,
+                            None,
+                            None,
+                            None,
+                            60 * round['blocks']/round['time'],
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            round['time'],
+                            RoundsView.teamDict[round["team"]],
+                            RoundsView.teamDict[round["ruleset"]],
+                            round["cheeserows"]
+
+                        ])
+
+                    case 2 | 3: #Survivor | Slowest Link
+                        data.append([
+                            # Start, place, roomsize, maxCombo, blocksPlaced, linesSent, linesBlocked, linesGot, Blocked%, BPM
+                            # SPM, SPB, OPM, OPB, Power, Efficiency, playDuration, Team, Ruleset
+                            round["start"],
+                            round['place'],
+                            round['roomsize'],
+                            round['cmb'],
+                            round['blocks'],
+                            None,
+                            None,
+                            round['got'],
+                            None,
+                            60 * round['blocks']/round['time'],
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            round['time'],
+                            RoundsView.teamDict[round["team"]],
+                            RoundsView.teamDict[round["ruleset"]],
+                            round["cheeserows"]
+
+                        ])
+
         filename = f"files/userdata/rounds/{self.cultrisUsername}_{datetime.now(tz = timezone('UTC')).strftime('%Y_%m_%d')}.csv"
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f, delimiter = ';')
@@ -189,7 +264,7 @@ class RoundsView(CultrisView):
     async def page_down(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
         self.page -= 1
-        await interaction.response.edit_message(content = f"Rounds of {self.cultrisUsername}" + self.data[self.page],
+        await interaction.response.edit_message(content = f"Rounds of {self.cultrisUsername}" + self.pages[self.page],
             view=self
             )
 
@@ -197,7 +272,7 @@ class RoundsView(CultrisView):
     async def page_up(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.logButton(interaction, button)
         self.page += 1
-        await interaction.response.edit_message(content = f"Rounds of {self.cultrisUsername}" + self.data[self.page],
+        await interaction.response.edit_message(content = f"Rounds of {self.cultrisUsername}" + self.pages[self.page],
             view=self
             )
         
@@ -240,9 +315,9 @@ class Rounds(commands.Cog):
         msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{cultrisUsername}\'?"
 
         view = RoundsView(self.bot, interaction.user, cultrisUsername, userId)
-        view.data = await view.generate_data()
+        view.pages = await view.generate_data()
         
-        await interaction.response.send_message(f"Rounds of {cultrisUsername}" + view.data[0], view=view)
+        await interaction.response.send_message(f"Rounds of {cultrisUsername}" + view.pages[0], view=view)
         view.message = await interaction.original_response()
 
     
