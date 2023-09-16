@@ -14,13 +14,23 @@ requiredMatchesBPM            = data.get("requiredMatchesBPM") if data.get("requ
 requiredMatchesBlockedPercent = data.get("requiredMatchesBlockedPercent") if data.get("requiredMatchesBlockedPercent") else 40
 requiredMatchesOPM            = data.get("requiredMatchesOPM") if data.get("requiredMatchesOPM")                       else 40
 requiredMatchesOPB            = data.get("requiredMatchesOPB") if data.get("requiredMatchesOPB")                       else 40
+requiredMatchesPower          = data.get("requiredMatchesPower") if data.get("requiredMatchesPower")                   else 40
 timeformat                    = data.get("timeformat") if data.get("timeformat")                                       else r"%Y-%m-%dT%H:%M:%S"
 BASE_USER_URL                 = data.get("BASE_USER_URL") if data.get("BASE_USER_URL")                                 else None
 BASE_ROUNDS_URL               = data.get("BASE_ROUNDS_URL") if data.get("BASE_ROUNDS_URL")                             else None
 LIVEINFO_URL                  = data.get("LIVEINFO_URL") if data.get("LIVEINFO_URL")                                   else None
+deleteUserData                = data.get("deleteUserData") if data.get("deleteUserData")                               else True
+commandCooldown               = data.get("commandCooldown") if data.get("commandCooldown")                             else 120
+roundsUserdataDirectory       = data.get("roundsUserdataDirectory") if data.get("roundsUserdataDirectory")             else f"files/userdata/rounds/"
 
 if powerTableData := data.get("powerTable"):
     powerTableRange = data.get("powerTableRange")
     powerTable = {i : powerTableData[i - powerTableRange[0]] for i in range(powerTableRange[0], powerTableRange[1] + 1)}
 else:
     powerTable = {2: 37.8883647435868, 3: 35.4831455255647, 4: 40.1465889629567, 5: 44.2602184213111, 6: 48.575338292518, 7: 50.649550305342, 8: 51.9969119509592, 9: 56.306414280463}
+
+multiplier = {i : powerTable.get(2)/powerTable.get(i) for i in range(powerTableRange[0], powerTableRange[1] + 1)}
+
+COLOR_Default = int(data.get("COLOR_Default"), 16) if data.get("COLOR_Default") else 0x0B3C52
+COLOR_Yellow  = int(data.get("COLOR_Yellow"), 16) if data.get("COLOR_Yellow")   else 0xFFFF70
+COLOR_Red     = int(data.get("COLOR_Red"), 16) if data.get("COLOR_Red")         else 0xFF0000
