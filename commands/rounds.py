@@ -326,7 +326,7 @@ class Rounds(commands.Cog):
     async def roundsError(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandOnCooldown):
             await interaction.response.send_message(
-                f"/rounds can only be used once every {commandCooldown//60}} minutes! Try again in {int(error.retry_after)}s.", ephemeral=True)
+                f"/rounds can only be used once every {commandCooldown//60} minutes! Try again in {int(error.retry_after)}s.", ephemeral=True)
         
 
 async def setup(bot: commands.Bot):
