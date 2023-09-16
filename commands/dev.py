@@ -23,7 +23,7 @@ class DevCommands(commands.Cog):
 
 
 
-    @commands.command()
+    @commands.command(aliases = ['r', 'rl'])
     async def reload(self, ctx: commands.Context, command: str = 'all'): 
         """
         Reloads all commands in the commands folder without needing to restart the bot. 
