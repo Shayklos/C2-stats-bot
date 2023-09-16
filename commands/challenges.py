@@ -67,6 +67,7 @@ class ChallengesView(CultrisView):
             case "49.6 µFortnight":
                 data = challenge.get("ol-send")
                 embed.add_field(name = "Lines sent", value = data.get("linesSent"))
+                embed.add_field(name = "Sent per block", value = f"{data.get('linesSent')/data.get('blocks'):.2f}")
                 embed.add_field(name = "BPM", value = f"{60*data.get('blocks')//data.get('playDuration'):.0f}")
 
             case "Ten":
