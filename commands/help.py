@@ -14,15 +14,17 @@ HELP = {
 
 ***/legacystats*** *[username]* : Shows all-time stats of an user. By default, it will use your Discord display name as username. If you can't find a user, try with an old username.
 
-***/weeklybest*** : Shows a top 5 on SPM rounds and top 5 cheese times in the last 7 days. **Feel free to suggest things to add here**.
-
-***/online*** : Shows a list of current players online.
-
 ***/leaderboard*** *[stat] [page] [days]* : Displays a leaderboard of a stat. Let Discord autocomplete show you what [stat] parameter can you choose. [page] can be negative to sort backwards.
 
 ***/rankings *** *[page]* : Current rank/scores. Doesn't work too well, specially at the end of the leaderboard. I've disabled negative page numbers for this reason. 
 
-***/challenges*** *[challenge]* : Displays stats of a singleplayer challenge (Maserati, Survivor, Swiss Cheese...).
+***/weeklybest*** : Shows a top 5 on SPM rounds and top 5 cheese times in the last 7 days. **Feel free to suggest things to add here**.
+
+***/online*** : Shows a list of current players online.
+
+***/challenges*** *[challenge]* : Displays stats of a singleplayer challenge (Maserati, Survivor, Swiss Cheese...) of a user.
+
+***/rounds*** *[username]* : Displays a per-round stats table of a user. 
 
 ***/help*** *[about]* : Displays helpful information about the bot or the stats it calculates.
 
