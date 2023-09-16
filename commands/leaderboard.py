@@ -8,7 +8,7 @@ sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
-
+from settings import COLOR_Default
 
 class LeaderboardView(CultrisView):
 
@@ -111,7 +111,7 @@ class LeaderboardView(CultrisView):
         description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     description=description,
                     title=title),
             view=self
@@ -129,7 +129,7 @@ class LeaderboardView(CultrisView):
         description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     description=description,
                     title=title),
             view=self
@@ -142,7 +142,7 @@ class LeaderboardView(CultrisView):
         description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     description=description,
                     title=title),
             view=self
@@ -155,7 +155,7 @@ class LeaderboardView(CultrisView):
         description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     description=description,
                     title=title),
             view=self
@@ -172,7 +172,7 @@ class LeaderboardView(CultrisView):
         description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     description=description,
                     title=title),
             view=self
@@ -189,7 +189,7 @@ class LeaderboardView(CultrisView):
         description, title = await self.getData(self.page, self._stat, self.days)
         await interaction.response.edit_message(
             embed=discord.Embed(
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     description=description,
                     title=title),
             view=self
@@ -221,7 +221,7 @@ class Leaderboard(commands.Cog):
             return
         
         embed = discord.Embed(
-                color=0x0B3C52,
+                color=COLOR_Default,
                 description=description,
                 title=title)
         

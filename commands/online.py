@@ -5,7 +5,7 @@ import sys
 sys.path.append('../c2-stats-bot')
 import database, methods
 from bot import developerMode
-
+from settings import COLOR_Default
 
 class Online(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -21,7 +21,7 @@ class Online(commands.Cog):
         players = database.getPlayersOnline()
 
         embed = discord.Embed(
-                color=0x0B3C52,
+                color=COLOR_Default,
                 description=players,
                 title="Players online"
             )

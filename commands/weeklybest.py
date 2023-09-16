@@ -4,7 +4,7 @@ from discord.ext import commands
 import sys
 sys.path.append('../c2-stats-bot')
 import database, methods
-
+from settings import COLOR_Default
 
 class WeeklyBest(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -19,7 +19,7 @@ class WeeklyBest(commands.Cog):
         top5SPM, top5Cheese = await database.weekly_best(self.bot.db)
         embed = discord.Embed(
                 title="Weekly Best",
-                color=0x0B3C52,
+                color=COLOR_Default,
             )
         embed.add_field(name = "Top 5 SPM (7d)", value = 
                         f"""**{top5SPM[0][0]}** - {round(top5SPM[0][1])}

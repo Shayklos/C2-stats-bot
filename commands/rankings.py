@@ -8,6 +8,7 @@ sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
+from settings import COLOR_Default
 
 class RankingsView(CultrisView):
 
@@ -30,7 +31,7 @@ class RankingsView(CultrisView):
             start+=1
 
         embed = discord.Embed(
-                color=0x0B3C52,
+                color=COLOR_Default,
                 description=description,
                 title=f"Leaderboard"
             )

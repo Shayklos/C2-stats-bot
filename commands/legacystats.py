@@ -4,7 +4,7 @@ from discord.ext import commands
 import sys
 sys.path.append('../c2-stats-bot')
 import database, methods
-
+from settings import COLOR_Default
 
 class LegacyStats(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -34,7 +34,7 @@ class LegacyStats(commands.Cog):
         # print(timeStats)
         embed = discord.Embed(
                 title=player["name"],
-                color=0x0B3C52,
+                color=COLOR_Default,
                 url=f"https://gewaltig.net/ProfileView/{player['userId']}",
             )
         if player["rank"]:

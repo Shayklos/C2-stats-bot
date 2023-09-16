@@ -8,6 +8,7 @@ sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
+from settings import COLOR_Default, COLOR_Red, COLOR_Yellow
 
 
 """
@@ -100,7 +101,7 @@ class StatsView(CultrisView):
                 fields, values,
                 embed = discord.Embed(
                     title=player["name"],
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     url=f"https://gewaltig.net/ProfileView/{userId}",
                     description=f"{days} days stats:"
                 ),
@@ -116,7 +117,7 @@ class StatsView(CultrisView):
         
         embed = discord.Embed(
                 title=f"Cheese times of {player['name']} ({days}d)",
-                color=0xFFFF70,
+                color=COLOR_Yellow,
             )
 
         if self.desktop: #Desktop view; uses embed fields to align values
@@ -153,7 +154,7 @@ class StatsView(CultrisView):
         
         embed = discord.Embed(
             title=f"Combo spread of {player['name']} ({days}d)",
-            color=0xFF0000,
+            color=COLOR_Red,
         )
         if self.desktop: #Desktop view; uses embed fields to align values
             combos = ""

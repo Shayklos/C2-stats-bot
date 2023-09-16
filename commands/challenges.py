@@ -7,6 +7,7 @@ import sys, traceback
 sys.path.append('../c2-stats-bot')
 from logger import *
 from CultrisView import CultrisView
+from settings import COLOR_Default
 import database, methods
 
 
@@ -43,7 +44,7 @@ class ChallengesView(CultrisView):
     def createEmbed(self, interaction: discord.Interaction):
         embed = discord.Embed(
                     title=f"{self.challenge} of {self.playerData.get('name')}",
-                    color=0x0B3C52,
+                    color=COLOR_Default,
                     url=f"https://gewaltig.net/ProfileView/{self.userId}",
                 )
 
