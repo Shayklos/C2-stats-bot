@@ -3,16 +3,14 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui.item import Item
 from typing import Any
-import asyncio
-import csv
+import asyncio, csv, sys, os
 from pytz import timezone
 from datetime import datetime
-import sys
 sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
-from settings import powerTable, multiplier, admins
+from settings import powerTable, multiplier, admins, deleteUserData, roundsUserdataDirectory, commandCooldown
 
 class RoundsView(CultrisView):
 
@@ -123,7 +121,6 @@ class RoundsView(CultrisView):
                 if not count%20:
                     pages.append(self.codeblocksFormat(lines, header))
                     lines = []
-        print(3)
         return pages 
     
 
@@ -151,7 +148,7 @@ class RoundsView(CultrisView):
                 ['Start', 'Place', 'Roomsize', 'maxCombo', 'blocksPlaced', 
                 'linesSent', 'linesBlocked', 'linesGot', 'Blocked%', 'BPM', 
                 'SPM','SPB%','OPM','OPB%','Power','Efficiency%',
-                'playDuration', 'Team', 'eatenCheese']
+                'playDuration', 'Team', 'Ruleset', 'eatenCheese']
             ]
         async with query as rounds:
             async for round in rounds: 
@@ -220,7 +217,7 @@ class RoundsView(CultrisView):
                             None,
                             round['time'],
                             RoundsView.teamDict[round["team"]],
-                            RoundsView.teamDict[round["ruleset"]],
+                            RoundsView.rulesetDict[round["ruleset"]],
                             round["cheeserows"]
 
                         ])
@@ -247,12 +244,13 @@ class RoundsView(CultrisView):
                             None,
                             round['time'],
                             RoundsView.teamDict[round["team"]],
-                            RoundsView.teamDict[round["ruleset"]],
+                            RoundsView.rulesetDict[round["ruleset"]],
                             round["cheeserows"]
 
                         ])
 
-        filename = f"files/userdata/rounds/{self.cultrisUsername}_{datetime.now(tz = timezone('UTC')).strftime('%Y_%m_%d')}.csv"
+        filename = f"{roundsUserdataDirectory}{self.cultrisUsername}_{datetime.now(tz = timezone('UTC')).strftime('%Y_%m_%d')}.csv"
+        os.makedirs(os.path.dirname(filename), exist_ok=True) #create subfolders if they don't exist
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f, delimiter = ';')
             writer.writerows(data)
@@ -284,6 +282,8 @@ class RoundsView(CultrisView):
         await interaction.channel.send(file = self.downloadable)
         await interaction.response.edit_message(view = self)
 
+        if deleteUserData:
+            os.remove(roundsUserdataDirectory + self.downloadable.filename)
 
  
 
@@ -296,7 +296,7 @@ class Rounds(commands.Cog):
         #One call every two minutes, Ignores cooldown for admins
         if interaction.user.name in admins:
             return None 
-        return app_commands.Cooldown(1, 120)
+        return app_commands.Cooldown(1, commandCooldown)
 
 
     @app_commands.command(description="Display round stats of a certain player.")
@@ -325,7 +325,8 @@ class Rounds(commands.Cog):
     @rounds.error #Cooldown handling
     async def roundsError(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(f"/rounds can only be used once every 2 minutes! Try again in {int(error.retry_after)}s.", ephemeral=True)
+            await interaction.response.send_message(
+                f"/rounds can only be used once every {commandCooldown//60}} minutes! Try again in {int(error.retry_after)}s.", ephemeral=True)
         
 
 async def setup(bot: commands.Bot):
