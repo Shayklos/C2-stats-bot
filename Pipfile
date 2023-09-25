@@ -9,6 +9,8 @@ thefuzz = {version = "*", extras = ["speedup"]}
 pytz = "*"
 python-dotenv = "*"
 aiosqlite = "*"
+aiohttp = "*"
+aiodns = "*"
 
 [dev-packages]
 

@@ -18,7 +18,7 @@ class Online(commands.Cog):
         correct = await methods.checks(interaction)
         if not correct:
             return
-        players = database.getPlayersOnline()
+        players = await database.getPlayersOnline()
 
         embed = discord.Embed(
                 color=COLOR_Default,

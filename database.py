@@ -1,4 +1,4 @@
-import sqlite3, aiosqlite, asyncio, urllib.request, json
+import sqlite3, aiosqlite, asyncio, aiohttp
 from settings import * 
 from datetime import datetime,timedelta
 from pytz import timezone
@@ -28,8 +28,9 @@ async def add_new_rounds(db: aiosqlite.Connection):
     while not empty:
         try:
             url = BASE_ROUNDS_URL+str(roundN)
-            with urllib.request.urlopen(url) as URL:
-                data = json.load(URL)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                        data = await response.json()
 
             if not data:
                 empty = True
@@ -195,8 +196,9 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
 
     url = BASE_USER_URL+userId
     try:
-        with urllib.request.urlopen(url) as URL:
-            data = json.load(URL)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                data = await response.json()
     except:
         # website is down at the moment
         log(f"in update_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
@@ -251,7 +253,7 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
                 await db.commit()
         except Exception as e:
             print(e)
-            asyncio.sleep(1)
+            await asyncio.sleep(1)
             continue
         else:
             log(f"Added {params[0]}")
@@ -321,8 +323,9 @@ async def update_userlist(db: aiosqlite.Connection):
     while True:
         url = BASE_USER_URL+str(id)
         try:
-            with urllib.request.urlopen(url) as URL:
-                data = json.load(URL)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    data = await response.json()
 
                 if data.get("stats") is None:
                     query = "insert into Users (name, userId) values (?, ?)"
@@ -347,8 +350,9 @@ async def update_userlist(db: aiosqlite.Connection):
                 log(f"New account: user {data.get('name')} ({id}).")
                 id+=1
 
-        except urllib.error.HTTPError:
+        except aiohttp.ContentTypeError:
             # no website
+            await db.commit()
             return
         except: #I've seen urllib.error.URLError and http.client.RemoteDisconnected
             # website is down at the moment / client has no internet connection
@@ -677,9 +681,10 @@ async def getCombos(db: aiosqlite.Connection, days = 7, requiredMatches = requir
 
 
 
-def getPlayersOnline():
-    with urllib.request.urlopen(LIVEINFO_URL) as URL:
-        liveinfo = json.load(URL)
+async def getPlayersOnline():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(LIVEINFO_URL) as response:
+            liveinfo = await response.json()
 
 
     result = ""
@@ -782,8 +787,9 @@ on userId = u
     for id, rank in res:
         url = BASE_USER_URL+str(id)
         try:
-            with urllib.request.urlopen(url) as URL:
-                data = json.load(URL)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    data = await response.json()
         except:
             # website is down at the moment
             log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
