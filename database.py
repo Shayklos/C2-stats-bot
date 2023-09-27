@@ -551,7 +551,7 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
             "opb" :  100*(sent+blocked)/blocks, 
             "opm" : (sent+blocked)/playedTime,
             "mins" : playedTime, 
-            "winrate" : 100*(winned-roomsize1)/(played-roomsize1),
+            "winrate" : 100*winned/(played-roomsize1),
             "played" : played,
             "bestCombo" : bestCombo,
             "bestBPM" : bestBPM,
