@@ -464,7 +464,7 @@ def time_based_stats_old(db: aiosqlite.Connection, userId = None, username = Non
     }
 # print(time_based_stats(db, 5840))
 
-async def time_based_stats(db: aiosqlite.Connection, userId = None, username = None, days = 7):
+async def time_based_stats(db: aiosqlite.Connection, userId = None, username = None, days = 7, minutes = 0):
     #Get user's ID if not given
     if not (userId or username):
         return None
@@ -473,7 +473,7 @@ async def time_based_stats(db: aiosqlite.Connection, userId = None, username = N
         if userId is None:
             return None
 
-    date = datetime.now(tz = timezone('UTC'))-timedelta(days=days)
+    date = datetime.now(tz = timezone('UTC'))-timedelta(days=days,minutes=minutes)
 
     rounds = await db.execute("""
                         select 	
@@ -621,7 +621,7 @@ async def getNetscore(db: aiosqlite.Connection, userId = None, username = None, 
         if userId is None:
             return None
     
-    days = min(7, days)
+    days = max(min(7, days), 1)
     query = "select "
     for i in range(1, days):
         query += f"day{i}, "
@@ -1172,7 +1172,7 @@ async def getPPB(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
 
 
 
-async def userCheeseTimes(db: aiosqlite.Connection, userId, days=7, limit = 20):
+async def userCheeseTimes(db: aiosqlite.Connection, userId, days=7, minutes = 0, limit = 20):
     date_now = datetime.now(tz = timezone('UTC'))
     cur = await db.execute(
         """
@@ -1188,14 +1188,14 @@ async def userCheeseTimes(db: aiosqlite.Connection, userId, days=7, limit = 20):
         and start > ?
     order by playDuration asc limit ?
 """, 
-    (userId, date_now-timedelta(days=days), limit))
+    (userId, date_now-timedelta(days=days, minutes=minutes), limit))
 
     times = await cur.fetchall()
 
     return times
 
 
-async def userComboSpread(db: aiosqlite.Connection, userId, days=7):
+async def userComboSpread(db: aiosqlite.Connection, userId, days=7, minutes = 0):
     date_now = datetime.now(tz = timezone('UTC'))
     cur = await db.execute("""
     select maxCombo, count(*) from 
@@ -1205,7 +1205,7 @@ async def userComboSpread(db: aiosqlite.Connection, userId, days=7):
             start > ?
         group by maxCombo
         """,
-    (userId, date_now-timedelta(days=days)))
+    (userId, date_now-timedelta(days=days, minutes = minutes)))
     combos = await cur.fetchall()
 
     return combos
