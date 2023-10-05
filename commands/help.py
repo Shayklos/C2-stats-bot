@@ -10,7 +10,7 @@ import methods
 
 HELP = {
                                         'Commands' : 
-"""***/stats*** *[username] [days]* : Shows stats of a user in the last *[days]* days. By default, it will use your Discord display name as username, and in 7 days. If you can't find a user, try with an old username.
+"""***/stats*** *[username] [days] [minutes]* : Shows stats of a user in the last *[days]* days and *[minutes]* minutes. By default, it will use your Discord display name as username, and in 7 days. If you can't find a user, try with an old username.
 
 ***/legacystats*** *[username]* : Shows all-time stats of an user. By default, it will use your Discord display name as username. If you can't find a user, try with an old username.
 
