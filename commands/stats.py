@@ -202,7 +202,7 @@ class StatsView(CultrisView):
         else:
             self.days = min(max(0, self.days+amount), database.dbDaysLimit)
 
-        if self.days == 0:
+        if self.days == 0 and self.minutes == 0:
             self.minutes = 60
         elif self.days == 30:
             self.minutes = 0
