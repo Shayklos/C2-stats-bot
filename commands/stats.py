@@ -123,7 +123,7 @@ class StatsView(CultrisView):
         cheese = await database.userCheeseTimes(self.bot.db, userId, days, minutes)
         player = self.player
         embed = discord.Embed(
-                title=f"Cheese times of {player['name']} ({days}d{(' ' + str(minutes) + 'h')*(minutes>0)})",
+                title=f"Cheese times of {player['name']} ({days}d{(' ' + str(minutes) + 'm')*(minutes>0)})",
                 color=COLOR_Yellow,
             )
 
@@ -160,7 +160,7 @@ class StatsView(CultrisView):
         total = sum([x[1] for x in spread]) # Total games played in Standard calculated through the sum of counts of each combo
         
         embed = discord.Embed(
-            title=f"Combo spread of {player['name']} ({days}d{(' ' + str(minutes) + 'h')*(minutes>0)})",
+            title=f"Combo spread of {player['name']} ({days}d{(' ' + str(minutes) + 'm')*(minutes>0)})",
             color=COLOR_Red,
         )
         if self.desktop: #Desktop view; uses embed fields to align values
