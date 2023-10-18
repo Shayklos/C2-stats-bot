@@ -682,23 +682,37 @@ async def getCombos(db: aiosqlite.Connection, days = 7, requiredMatches = requir
 
 
 async def getPlayersOnline():
+    #This function loops waaaaaaay to many times over liveinfo.get("players"). Performance could be improved
+
     async with aiohttp.ClientSession() as session:
         async with session.get(LIVEINFO_URL) as response:
             liveinfo = await response.json()
 
-
+    # The 'players' field in liveinfo.get("rooms") counts the number of *active* players in a room.
+    # So I check in which room each player is instead so this could track rooms with afk players as well.
+    populated_rooms = set()
+    for player in liveinfo.get("players"):
+        if player.get('room') is not False:
+            populated_rooms.add(player.get('room'))
+    
     result = ""
+
+    # Iterate through all the rooms
     for room in liveinfo.get("rooms"):
-        if room.get("players"):
+
+        # If there is a player in that room, add it to the result
+        if room.get("id") in populated_rooms:
             result += f"\n**{room.get('name')}**:\n"
             players = []
             for player in liveinfo.get("players"):
-                if player.get("room") is room.get("id"): #Note that == doesn't work here, since False == 0 is True
+
+                # Note that the first check is not sufficient, as False = 0 is True in Python. So without the second check, players outside a room would end up in room 0 (which is FFA)
+                if player.get("room") == room.get("id") and player.get("room") is not False: 
                     players.append((player.get("currentscore"), player.get("name"), player.get("afk") ))
             players = sorted(players, reverse=True)
             for i, player in enumerate(players):
-                if i==0:
-                    if player[2]:
+                if i==0: # Top player should be written in bold
+                    if player[2]: #Afk players should be written in italics
                         result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC***{player[1]}***\n"
                     else:
                         result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC**{player[1]}**\n"
@@ -708,21 +722,23 @@ async def getPlayersOnline():
                         result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC_{player[1]}_\n"
                     else:
                         result += f"{player[0]}\u1CBC\u1CBC\u1CBC\u1CBC{player[1]}\n"
+
+
+    # Add players that are not in a room
     players = []
     for player in liveinfo.get("players"):
-        if player.get("status")!="room":
+        if player.get("status")!="room": # Equivalent to player.get("room") is False
             players.append((player.get('challenge'), player.get("name")))
 
     result+="\n"
-    players=sorted(players)
-    for player in players:
+    for player in sorted(players):
         if player[0]:
             result+= f"**{player[1]}**: Playing challenge \"{player[0]}\"\n"
         else:
             result+= f"**{player[1]}**: Hanging out in the lobby\n"
     return result
         
-
+    
 
 async def getPlayersWhoPlayedRecently(db: aiosqlite.Connection, hours=1):
     date_now = datetime.now(tz = timezone('UTC'))
@@ -1255,8 +1271,9 @@ if __name__ == "__main__":
     async def main():
         db = await aiosqlite.connect(r"files\cultris.db")
         db.row_factory = aiosqlite.Row
-        stats = await time_based_stats(db, 5840, days=30)
-        print(stats)
+        # stats = await time_based_stats(db, 5840, days=30)
+        online = await getPlayersOnline()
+        print(online)
         # leaderboard = await getPowerB(db, 30)
         # for l in leaderboard:
         #     print(f"{l[1]} {l[2]}")
