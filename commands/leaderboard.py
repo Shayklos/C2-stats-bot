@@ -107,7 +107,7 @@ class LeaderboardView(CultrisView):
 1. != or <> (not equal)
 1. < (less than)
 1. <= or ≤ (less or equal than)
-1. > (greater than)
+1. \> (greater than)
 1. >= or ≥ (greater or equal than) 
 1. | or || (or)
 1. & or && (and)
