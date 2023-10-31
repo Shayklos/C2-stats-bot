@@ -75,8 +75,11 @@ async def add_new_rounds(db: aiosqlite.Connection):
             await db.executemany(query2,parameters2)
             roundN += 1000
         except Exception as e:
-            print(e)
-            roundN = await newest_round(db)+1
+            if BASE_ROUNDS_URL == 'xxx':
+                print("You haven't introduced the API URL into 'settings.json' for BASE_ROUNDS_URL")
+            else:
+                print(e)
+                roundN = await newest_round(db)+1
     
     log(f"Added {count} matches.")
 
@@ -201,7 +204,10 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
                 data = await response.json()
     except:
         # website is down at the moment
-        log(f"in update_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
+        if BASE_USER_URL == 'xxx':
+                print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL")
+        else:
+            log(f"in update_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
         await asyncio.sleep(30)
         await update_profile_data(db, userId, add_to_netscores, commit)
         return
@@ -356,7 +362,10 @@ async def update_userlist(db: aiosqlite.Connection):
             return
         except: #I've seen urllib.error.URLError and http.client.RemoteDisconnected
             # website is down at the moment / client has no internet connection
-            log("No connection", 'files/log_errors.txt')
+            if BASE_USER_URL == 'xxx':
+                print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL")
+            else:
+                log("No connection", 'files/log_errors.txt')
             await asyncio.sleep(30)
             await update_userlist(db)
     
@@ -808,7 +817,10 @@ on userId = u
                     data = await response.json()
         except:
             # website is down at the moment
-            log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
+            if BASE_USER_URL == 'xxx':
+                print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL.")
+            else:
+                log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
             await asyncio.sleep(30)
             await update_ranks(db, old_round, new_round, commit)
             return
