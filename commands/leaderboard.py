@@ -95,7 +95,33 @@ class LeaderboardView(CultrisView):
                 title=f"Efficiency ({days} days)"
 
             case other:
-                return None, None
+                if 'Combo count' in other:
+                    other: str
+                    start, end = other.find('(')+1, other.find(')')
+                    if start == -1 or end == -1:
+                        msg = f"""Incorrect syntax! Conditional operators allowed are
+1. nothing or = or == (equal)
+1. != or <> (not equal)
+1. < (less than)
+1. <= or ≤ (less or equal than)
+1. > (greater than)
+1. >= or ≥ (greater or equal than) 
+1. | or || (or)
+1. & or && (and)
+
+So something like 
+«Combo count (13)» would count combos that are equal to 13,
+«Combo count (<6)» would count combos that are strictly less than 6, and,
+«Combo count (<=3||>10)» would count combos that are either less or equal than 3 or strictly greater than 10.
+                        """
+                        return None, msg
+                    condition = other[start:end]
+                    data, title = await database.getComboCount(self.bot.db, condition, days=days, returnTitle=True)
+                    page = 1 if pageSize*(page - 1) > len(data) else page
+                    description=methods.getPage(page, data, pageSize = pageSize)
+                    title += f" ({days} days)"
+                else:
+                    return None, 'Did you choose a stat?'
         
         return description, title
 
@@ -217,7 +243,7 @@ class Leaderboard(commands.Cog):
         #Contents of message
         description, title = await view.getData(page, stat, days)
         if not description:
-            await interaction.response.send_message("Did you choose a stat?", ephemeral=True)
+            await interaction.response.send_message(title, ephemeral=True)
             return
         
         embed = discord.Embed(
@@ -244,6 +270,8 @@ class Leaderboard(commands.Cog):
             'Time played',
             'Power',
             'Efficiency',
+            'Combo count (13)',
+            'Combo count (>10)',
         ])
         return [
             app_commands.Choice(name=stat, value=stat)

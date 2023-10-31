@@ -1264,15 +1264,149 @@ async def refresh_rankings(db: aiosqlite.Connection, refresh_limit: int):
     await db.commit()
 
 
+async def getComboCount(db: aiosqlite.Connection, condition, absolute = False, days = 7, requiredMatches = 40, returnTitle = False):  
+    """
+    Gives a leaderboard given the specified condition. 
+    absolute = True will rank by count, absolute = False will rank by ratio of count to total matches
+    """
+    class WrongOperator(Exception):
+                pass
+    
+    def translateConditionToSQL(input: str) -> str:
+        """
+        This function is designed to transform the given condition in getComboCount into SQL code, i.e.:
+        <3 to Rounds.maxCombo < 3
+        """
 
+        def isNum(char):
+            return '0' <= char <= '9'
+        
+        def symbolTranslate(symbol):
+            match symbol:
+                case '<>' | '!=':
+                    return '<>', 'not '
+                case '' | '=' | '==':
+                    return '=', ''
+                case '<':
+                    return '<', 'less than '
+                case '>':
+                    return '>', 'greater than '
+                case '≤' | '<=':
+                    return '<=', 'less or equal than '
+                case '≥' | '>=':
+                    return '>=', 'greater or equal than '
+                case operator:
+                    raise WrongOperator(operator)
+
+        input = input.replace(' ', '')  #Spaces messes things up
+
+        if not input:
+            return -1
+
+        isNumArray = []
+
+        for char in input:
+            if isNum(char):
+                isNumArray.append(1)
+            else:
+                isNumArray.append(0)
+
+        conditionArray = []
+        count = 0
+        state = isNumArray[0]
+
+        for i, num in enumerate(isNumArray):
+            if num == state:
+                continue 
+            else:
+                conditionArray.append(input[count:i])
+                state = not state 
+                count = i
+        conditionArray.append(input[count:])
+
+        sqlConditions = ""
+        title = "Combos that are "
+
+        if isNum(conditionArray[0]):
+            conditionArray.insert(0, '=')
+
+        #IndexError probably means an operator was used without a number to its right
+        for i in range(0, len(conditionArray), 2):
+            operator, number = conditionArray[i], conditionArray[i+1]
+
+            if '|' in operator:
+                sqlConditions += 'or '
+                title += 'or '
+
+                operator = operator.replace('|', '')
+            elif '&' in operator:
+                sqlConditions += 'and '
+                title += 'and '
+
+                operator = operator.replace('&', '')
+
+            sqlConditions += f'Rounds.maxCombo {symbolTranslate(operator)[0]} {number} '
+            title += f'{symbolTranslate(operator)[1]}{number} '
+
+        return sqlConditions, title + 'leaderboard'
+
+    try:
+        SQLcondition, title = translateConditionToSQL(condition)
+
+    except IndexError:
+        pass 
+    except WrongOperator as e:
+        f"The operator {e} is no valid."
+
+
+    if days == 1:
+        requiredMatches //= 4
+    elif days == 2:
+        requiredMatches //= 3
+    date_now = datetime.now(tz = timezone('UTC'))
+
+    cur = await db.execute(
+        f"""
+            select 
+                Users.userId,
+                name, 
+                sum({SQLcondition}) as comboCount,
+                count(Rounds.maxCombo) as total,
+                100.0*sum({SQLcondition})/count(Rounds.maxCombo) as ratio
+                
+            from 
+                rounds join matches on rounds.roundid=matches.roundid 
+                    join users on Users.userId = Rounds.userId
+                    
+            where 
+                start > ? and 
+                roomsize > 1
+                
+            group by name 
+            having comboCount > 0 and total > ?
+            order by {'ratio'*(not absolute) + 'comboCount'*absolute} desc
+
+            """, 
+        (date_now-timedelta(days=days),requiredMatches))
+    comboCount = await cur.fetchall()
+    
+    if absolute:
+        data = [(row[0], row[1], f"**{row[2]}** in {row[3]} matches ({row[4]:.1f}%)") for row in comboCount]
+    else:
+        data = [(row[0], row[1], f"**{row[4]:.1f}%** ({row[2]} in {row[3]} matches)") for row in comboCount]
+
+    if returnTitle:
+        return data, title
+    else:
+        return data
 
 
 if __name__ == "__main__":
     async def main():
         db = await aiosqlite.connect(r"files\cultris.db")
-        db.row_factory = aiosqlite.Row
+        # db.row_factory = aiosqlite.Row
         # stats = await time_based_stats(db, 5840, days=30)
-        online = await getPlayersOnline()
+        online = await getComboCount(db, '13', absolute=True, returnTitle=True)
         print(online)
         # leaderboard = await getPowerB(db, 30)
         # for l in leaderboard:
