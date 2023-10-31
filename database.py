@@ -1396,7 +1396,7 @@ async def getComboCount(db: aiosqlite.Connection, condition, absolute = False, d
                 
             group by name 
             having comboCount > 0 and total > ?
-            order by {'ratio'*(not absolute) + 'comboCount'*absolute} desc
+            order by {'ratio'*(not absolute) + 'comboCount'*absolute} desc, total asc
 
             """, 
         (date_now-timedelta(days=days),requiredMatches))
