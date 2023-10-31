@@ -15,9 +15,6 @@ class Online(commands.Cog):
 
     @app_commands.command(description="Shows which users are online right now.")
     async def online(self, interaction: discord.Interaction):
-        correct = await methods.checks(interaction)
-        if not correct:
-            return
         players = await database.getPlayersOnline()
 
         embed = discord.Embed(

@@ -90,10 +90,6 @@ class Help(commands.Cog):
 
     @app_commands.command(description="Descriptions of current commands.")
     async def help(self, interaction: discord.Interaction, about: str = 'Commands'):
-        correct = await methods.checks(interaction)
-        if not correct:
-            return
-        
         about = about if about in ABOUTS else 'Commands'
         msg = HELP[about]
 
