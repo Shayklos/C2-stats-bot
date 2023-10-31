@@ -21,13 +21,13 @@ class LegacyStats(commands.Cog):
         
         if not username:
             username = interaction.user.display_name
-        ratio, userId, user = await database.fuzzysearch(self.bot.db, username) #ex (80, 5840, Shay)
-
-        msg = None
-        if ratio != 100:
-            msg = f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
-            
         
+        if correct is True:
+            ratio, userId, user = await database.fuzzysearch(self.bot.db, username) #ex (80, 5840, Shay)
+            msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{user}\'?"
+        else:
+            userId = correct
+            msg = None
         
         player = await database.player_stats(self.bot.db, userId)
         # print(player)

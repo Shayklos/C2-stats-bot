@@ -59,10 +59,12 @@ async def checks(interaction: discord.Interaction):
     if data.get("locked"):
         await interaction.response.send_message(f"Bot a bit busy! Try again in a minute.", ephemeral=True)
         return False
+    if interaction.user.name in data.get('approved_users').keys():
+        return data.get('approved_users').get(interaction.user.name)
     if developerMode or interaction.user.name in admins:
         return True
-    if interaction.channel.name != 'stats':
-        await interaction.response.send_message(f"Use the <#516686072537808897> channel!", ephemeral=True)
+    if interaction.channel.guild is None or interaction.channel.name != 'stats':
+        await interaction.response.send_message(f"Use the <#516686072537808897> channel! If you just want to use /stats, /legacystats or /challenges on yourself, you can just tell `shayklos`!", ephemeral=True)
         return False
     return True
 

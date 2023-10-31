@@ -329,8 +329,13 @@ class Stats(commands.Cog):
             elif days == database.dbDaysLimit and minutesGiven: #Do not exceed the db limit by adding minutes
                 minutes = 0
 
-            ratio, userId, username = await database.fuzzysearch(self.bot.db, usernameInput.lower())
-            msg = None if ratio == 100 else f"No user found with name \'{usernameInput}\'. Did you mean \'{username}\'?"
+            if correct is True:
+                ratio, userId, username = await database.fuzzysearch(self.bot.db, usernameInput.lower())
+                msg = None if ratio == 100 else f"No user found with name \'{usernameInput}\'. Did you mean \'{username}\'?"
+            else: #Approved user that can use commands on themselves
+                userId = correct
+                msg = None
+
 
             view = StatsView(self.bot, interaction.user, userId, days, minutes)
             view.player = await database.player_stats(self.bot.db, userId)
