@@ -20,9 +20,13 @@ class LeaderboardView(CultrisView):
         self._stat = stat
         self.page = page
         self.days = days
+        self.absolute = False
 
-
-    async def getData(self, page, stat, days, pageSize = database.embedPageSize):
+    async def getData(self, page, stat, days, pageSize = database.embedPageSize, absolute = False):
+        if 'Combo count' not in stat:
+            for item in self.children:
+                if item.label == 'Sort by count':
+                    self.remove_item(item)
         match stat:
             case 'Blocked%':
                 data = await database.getBlockedPercent(self.bot.db, days=days)
@@ -96,7 +100,6 @@ class LeaderboardView(CultrisView):
 
             case other:
                 if 'Combo count' in other:
-                    other: str
                     start, end = other.find('(')+1, other.find(')')
                     if start == -1 or end == -1:
                         msg = f"""Incorrect syntax! Conditional operators allowed are
@@ -116,15 +119,28 @@ So something like
                         """
                         return None, msg
                     condition = other[start:end]
-                    data, title = await database.getComboCount(self.bot.db, condition, days=days, returnTitle=True)
+                    data, title = await database.getComboCount(self.bot.db, condition, days=days, absolute=absolute, returnTitle=True)
                     page = 1 if pageSize*(page - 1) > len(data) else page
                     description=methods.getPage(page, data, pageSize = pageSize)
                     title += f" ({days} days)"
+
                 else:
                     return None, 'Did you choose a stat?'
         
         return description, title
 
+    @discord.ui.button(label="Sort by count", row = 2, style=discord.ButtonStyle.primary) 
+    async def absolute_relative(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.absolute = not self.absolute
+        button.label = 'Sort by ratio' if button.label == 'Sort by count' else 'Sort by count'
+        description, title = await self.getData(self.page, self._stat, self.days, absolute=self.absolute)
+        await interaction.response.edit_message(
+            embed=discord.Embed(
+                    color=COLOR_Default,
+                    description=description,
+                    title=title),
+            view=self
+            )
 
     @discord.ui.button(label="Week down", row = 0, style=discord.ButtonStyle.primary, emoji="⏬") 
     async def week_down(self, interaction: discord.Interaction, button: discord.ui.Button):
