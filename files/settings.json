@@ -1,7 +1,7 @@
 {
     "locked": false,
-    "NetscoreTime": 1694868341,
-    "RefreshRankingsTime": 1694795918,
+    "NetscoreTime": 1698673156,
+    "RefreshRankingsTime": 1698673205,
     "admins": [
         "yoozenji",
         "shayklos",
@@ -23,11 +23,13 @@
     "requiredMatchesBlockedPercent": 40,
     "requiredMatchesOPM": 40,
     "requiredMatchesOPB": 40,
-    "requiredMatchesPower":40,
+    "requiredMatchesPower": 40,
+    "requiredMatchesEfficiency": 40,
+    "requiredMatchesComboCount": 40,
     "timeformat": "%Y-%m-%dT%H:%M:%S",
     "deleteUserData": true,
     "commandCooldown": 120,
-    "roundsUserdataDirectory":"files/userdata/rounds/",
+    "roundsUserdataDirectory": "files/userdata/rounds/",
     "powerTableRange": [
         2,
         9

@@ -1018,7 +1018,7 @@ async def getBlockedPercent(db: aiosqlite.Connection, days = 7, requiredMatches 
 
     return [(combo[0], combo[1], f"**{combo[2]}%** in {combo[3]} matches" ) for combo in spm]
 
-async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
+async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesPower):
     def power(roomsize, opm):
         #without multiplying by 37.88... first. it'll be multiplied at the end (small optimization)
         if 1 < roomsize < 10:
@@ -1072,7 +1072,7 @@ async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
     ]
 
 
-async def getPowerB(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
+async def getPowerB(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesPower):
     def power(roomsize, opm):
         #without multiplying by 37.88... first. it'll be multiplied at the end (small optimization)
         if 1 < roomsize < 10:
@@ -1131,7 +1131,7 @@ async def getPowerB(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
 
 
 
-async def getPPB(db: aiosqlite.Connection, days = 7, requiredMatches = 40):
+async def getPPB(db: aiosqlite.Connection, days = 7, requiredMatches = requiredMatchesEfficiency):
     def ppb(roomsize, opb):
         #without multiplying by 37.88... first. it'll be multiplied at the end (small optimization)
         if 1 < roomsize < 10:
@@ -1264,7 +1264,7 @@ async def refresh_rankings(db: aiosqlite.Connection, refresh_limit: int):
     await db.commit()
 
 
-async def getComboCount(db: aiosqlite.Connection, condition, absolute = False, days = 7, requiredMatches = 40, returnTitle = False):  
+async def getComboCount(db: aiosqlite.Connection, condition, absolute = False, days = 7, requiredMatches = requiredMatchesComboCount, returnTitle = False):  
     """
     Gives a leaderboard given the specified condition. 
     absolute = True will rank by count, absolute = False will rank by ratio of count to total matches
