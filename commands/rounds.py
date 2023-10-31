@@ -311,8 +311,12 @@ class Rounds(commands.Cog):
         if not username:
             username = interaction.user.display_name
 
-        ratio, userId, cultrisUsername = await database.fuzzysearch(self.bot.db, username.lower())
-        msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{cultrisUsername}\'?"
+        if correct is True:
+            ratio, userId, cultrisUsername = await database.fuzzysearch(self.bot.db, username.lower())
+            msg = None if ratio == 100 else f"No user found with name \'{username}\'. Did you mean \'{cultrisUsername}\'?"
+        else:
+            userId = correct
+            msg = None
 
         view = RoundsView(self.bot, interaction.user, cultrisUsername, userId)
         view.pages = await view.generate_data()
