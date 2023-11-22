@@ -1,10 +1,11 @@
-import discord, json
+import discord, json, asyncio
 import database
 from time import time
 from bot import developerMode
 from logger import log
 from settings import *
-
+from databaseexport import updateDatabase
+from os.path import isfile
 
 def getPage(page, data, pageSize = embedPageSize, isTime = False):
     
@@ -115,6 +116,35 @@ async def check_rankings(db):
     data["locked"] = False
     with open("files/settings.json", "w") as file:
         json.dump(data,file)
+
+async def update_fulldb(path_to_db = "files/fullCultris.db"):
+    #Check if db exists
+    if not isfile(path_to_db):
+        return
+
+    while True:
+        with open("files/settings.json", "r") as file:
+            data = json.load(file)
+        
+        now = time()
+        diff = now - data.get("UpdateDBTime")
+
+        if diff < 7*24*60*60: #A week
+            return
+        
+        data["UpdateDBTime"] = int(now)
+        data["locked"] = True
+        with open("files/settings.json", "w") as file:
+            json.dump(data,file)
+
+        updateDatabase("files/cultris.db", path_to_db)
+        log("Full DB updated")
+        
+        data["locked"] = False
+        with open("files/settings.json", "w") as file:
+            json.dump(data,file)
+
+        await asyncio.sleep(600)
 
 def create_achievements_file(url):
     import urllib.request, csv

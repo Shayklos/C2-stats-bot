@@ -1,15 +1,20 @@
 {
     "locked": false,
-    "NetscoreTime": 1698673156,
-    "RefreshRankingsTime": 1698673205,
+    "NetscoreTime": 1700600672,
+    "RefreshRankingsTime": 1700487662,
+    "UpdateDBTime": 1700650562,
     "admins": [
         "yoozenji",
         "shayklos",
         "forbiddenazalea",
+        "azaleadevs",
         "emtotheily",
         "kb1900",
         "thousandfire"
     ],
+    "approved_users": {
+        "percent4989": 12659
+    },
     "BASE_USER_URL": "xxx",
     "BASE_ROUNDS_URL": "xxx",
     "LIVEINFO_URL": "xxx",

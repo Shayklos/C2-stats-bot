@@ -40,8 +40,11 @@ async def gather_data():
 async def main():
     gatherData = asyncio.create_task(gather_data())
     c2Bot = asyncio.create_task(bot.cultrisBot.start(bot.TOKEN))
-    await gatherData # Data addition loop
-    await c2Bot      # Discord bot loop
+    updateFullDB = asyncio.create_task(update_fulldb())
+
+    await gatherData   # Data addition loop
+    await c2Bot        # Discord bot loop
+    await updateFullDB # Full DB data gathering
 
 
 
