@@ -112,7 +112,7 @@ async def process_data(db: aiosqlite.Connection, oldRound, newRound):
     """
 
     rounds = await db.execute("select * from rounds where roundId between ? and ?", (oldRound, newRound))
-    rulesets = await db.execute("select ruleset from matches where roundId between ? and ?", (oldRound, newRound))
+    metadata = await db.execute("select start, ruleset from matches where roundId between ? and ?", (oldRound, newRound))
     
 
     current_roundId = None
@@ -122,9 +122,7 @@ async def process_data(db: aiosqlite.Connection, oldRound, newRound):
             break
         elif round["roundId"] != current_roundId:
             current_roundId = round["roundId"]
-            cur = await rulesets.fetchone()
-            ruleset = cur[0]
-        
+            start, ruleset = await metadata.fetchone()
 
         #basically a 'choose your own adventure' query
         query = "UPDATE Users Set blocksPlaced = blocksPlaced + ?"
@@ -160,13 +158,15 @@ async def process_data(db: aiosqlite.Connection, oldRound, newRound):
                     linesGot = linesGot + ?, 
                     linesSent = linesSent + ?,
                     linesBlocked = linesBlocked + ?,                
-                    standardTime = standardTime + ?"""
+                    standardTime = standardTime + ?,
+                    lastPlayed = ?"""
             params += [round["maxCombo"], 
                     round["maxCombo"], 
                     round["linesGot"], 
                     round["linesSent"], 
                     round["linesBlocked"], 
-                    round["playDuration"]]
+                    round["playDuration"],
+                    start]
         query += " where userId = ?"
         params.append(round["userId"])
         await db.execute(query,params)
