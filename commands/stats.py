@@ -8,7 +8,7 @@ sys.path.append('../c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
-from settings import COLOR_Default, COLOR_Red, COLOR_Yellow
+from settings import COLOR_Default, COLOR_Red, COLOR_Yellow, timeformat
 
 
 """
@@ -59,11 +59,11 @@ class StatsView(CultrisView):
             #Preview of the order of the discord Embed fields
             fields = (
                 ["Rank - Score",     "Recorded Peak",   "Netscore"],
-                ("Minutes played",   "Games",           "Winrate"),
-                ("Best Combo",       "Avg Combo",       "SPM"),
-                ("Blocked%",         "OPB",             "OPM"),
-                ("Max BPM",          "BPM",             ""),
-                ("Power",            "Efficiency",      ""),
+                ["Minutes played",   "Games",           "Winrate"],
+                ["Best Combo",       "Avg Combo",       "SPM"],
+                ["Blocked%",         "OPB",             "OPM"],
+                ["Max BPM",          "BPM",             ""],
+                ["Power",            "Efficiency",      ""],
             )
             
             values = dict()
@@ -96,6 +96,8 @@ class StatsView(CultrisView):
                 values["Efficiency"]     = f"{timeStats['ppb']:.1f}%"
             else:
                 values["Minutes played"] = "0"
+                fields[1][1] = f'Last played'
+                values["Last played"] = f'<t:{int(datetime.strptime(player["lastPlayed"], timeformat.replace("T", " ")).timestamp())}:R>' if player["lastPlayed"] else "Never"
             
             description = ""
             if days > 0:

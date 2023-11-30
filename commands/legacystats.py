@@ -1,10 +1,11 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from datetime import datetime
 import sys
 sys.path.append('../c2-stats-bot')
 import database, methods
-from settings import COLOR_Default
+from settings import COLOR_Default, timeformat
 
 class LegacyStats(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -35,6 +36,7 @@ class LegacyStats(commands.Cog):
         embed = discord.Embed(
                 title=player["name"],
                 color=COLOR_Default,
+                description=f'Last seen <t:{int(datetime.strptime(player["lastPlayed"], timeformat.replace("T", " ")).timestamp())}:R>' if player["lastPlayed"] else "Has never played",
                 url=f"https://gewaltig.net/ProfileView/{player['userId']}",
             )
         if player["rank"]:

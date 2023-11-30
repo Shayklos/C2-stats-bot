@@ -408,6 +408,7 @@ async def player_stats(db: aiosqlite.Connection, userId = None, username = None)
         "cheeseTime" : data[23],
         "standardTime" : data[24],
         "playedMin" : data[25],
+        "lastPlayed" : data[26],
         "gravatarHash" : hash
     }
 
