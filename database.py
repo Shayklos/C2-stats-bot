@@ -90,7 +90,7 @@ async def add_new_rounds(db: aiosqlite.Connection):
 
 
 @async_log_time
-async def delete_old_data(db: aiosqlite.Connection, days=30):
+async def delete_old_data(db: aiosqlite.Connection, days=dbDaysLimit):
     date_now = datetime.now(tz = timezone('UTC'))
 
     cur = await db.execute("select max(roundId) from Matches where start < (?)", (date_now-timedelta(days=days),))
