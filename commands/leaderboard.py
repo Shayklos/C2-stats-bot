@@ -248,7 +248,7 @@ class Leaderboard(commands.Cog):
     @app_commands.describe(stat = "Stat of the leaderboard.",
                             days = "Number of days the period of time has (by default 7).",
                         page = "The page you want to see (by default 1). Use negative numbers to sort backwards.")
-    async def leaderboard(self, interaction: discord.Interaction, stat: str, days: app_commands.Range[int, 1, 30] = 7, page: int = 1):
+    async def leaderboard(self, interaction: discord.Interaction, stat: str, days: app_commands.Range[int, 1, database.dbDaysLimit] = 7, page: int = 1):
         #Verification
         correct = await methods.checks(interaction)
         if not correct:
