@@ -23,11 +23,6 @@ class CultrisBot(commands.Bot):
         for command in ["".join(('commands.', command[:-3])) for command in listdir('commands') if command[-3:] == '.py']:
             await self.load_extension(command)
 
-        if developerMode:
-            #Makes me have to wait less in my testing guild
-            self.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
-        await self.tree.sync(guild=discord.Object(id=GUILD_ID))
-        await self.tree.sync(guild=None)
         self.db = await aiosqlite.connect(r"files/cultris.db")
         self.db.row_factory = aiosqlite.Row
 

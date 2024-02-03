@@ -4,7 +4,7 @@ from discord.ext import commands
 import sys, os
 sys.path.append('../c2-stats-bot')
 from settings import admins
-
+from bot import GUILD_ID
 
 class DevCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -102,24 +102,18 @@ class DevCommands(commands.Cog):
         await ctx.message.add_reaction("👍")
 
 
-
     @commands.command()
-    async def commands(self, ctx: commands.Context): 
+    async def sync(self, ctx: commands.Context): 
         """
-        Displays list of dev commands
+        Syncs bot commands
         """
-        
-        if ctx.author.name not in admins:
-            return
-        
-        print("/commands was called by", ctx.author.name)
+        print("/sync was called by", ctx.author.name)
 
-        await ctx.reply("""ping
-reload [command | all]
-disable [command |all]
-change_status [online | offline | idle | dnd]
-commands
-""", ephemeral=False)
+        self.bot.tree.copy_global_to(guild=discord.Object(id=GUILD_ID)) #Makes me have to wait less in my testing guild
+        await self.bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        await self.bot.tree.sync(guild=None)
+
+        await ctx.message.add_reaction("👍")
 
 
 async def setup(bot: commands.Bot):
