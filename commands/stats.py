@@ -4,7 +4,8 @@ from discord.ext import commands
 from discord.ui.item import Item
 from typing import Any
 import sys, traceback
-sys.path.append('../c2-stats-bot')
+from os import sep
+sys.path.append(f'..{sep}c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView

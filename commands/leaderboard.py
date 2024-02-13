@@ -4,7 +4,8 @@ from discord.ext import commands
 from discord.ui.item import Item
 from typing import Any
 import sys
-sys.path.append('../c2-stats-bot')
+from os import sep
+sys.path.append(f'..{sep}c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
@@ -257,9 +258,11 @@ class Leaderboard(commands.Cog):
         view = LeaderboardView(self.bot, interaction.user, stat, days, page)
 
         #Contents of message
+        await interaction.response.defer()
         description, title = await view.getData(page, stat, days)
         if not description:
-            await interaction.response.send_message(title, ephemeral=True)
+            await interaction.followup.send(title, ephemeral=True)
+            # await interaction.response.send_message(title, ephemeral=True)
             return
         
         embed = discord.Embed(
@@ -267,7 +270,7 @@ class Leaderboard(commands.Cog):
                 description=description,
                 title=title)
         
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=view)
         view.message = await interaction.original_response()
         
 

@@ -2,11 +2,12 @@ import discord
 from discord.ext import commands
 
 from os import listdir, getenv
+from os.path import join
 from dotenv import load_dotenv
 
 import aiosqlite
 
-developerMode = False
+developerMode = True
 
 load_dotenv() 
 TOKEN = getenv('DISCORD_TOKEN') if not developerMode else getenv('DISCORD_TEST_TOKEN')
@@ -23,7 +24,7 @@ class CultrisBot(commands.Bot):
         for command in ["".join(('commands.', command[:-3])) for command in listdir('commands') if command[-3:] == '.py']:
             await self.load_extension(command)
 
-        self.db = await aiosqlite.connect(r"files/cultris.db")
+        self.db = await aiosqlite.connect(join("files", "cultris.db"))
         self.db.row_factory = aiosqlite.Row
 
         print("Bot is ready!")

@@ -1,6 +1,7 @@
 from database import *
 from methods import *
 from settings import gatherDataRefreshRate
+from os.path import join
 import bot
 import asyncio, traceback
 
@@ -22,7 +23,7 @@ async def gather_data():
         print(version)
         print("DEVELOPER MODE")
 
-    db = await aiosqlite.connect(r"files\cultris.db", check_same_thread=False)
+    db = await aiosqlite.connect(join('files', 'cultris.db'), check_same_thread=False)
     db.row_factory = aiosqlite.Row
     while True:
         await update_userlist(db)
@@ -40,11 +41,11 @@ async def gather_data():
 async def main():
     gatherData = asyncio.create_task(gather_data())
     c2Bot = asyncio.create_task(bot.cultrisBot.start(bot.TOKEN))
-    updateFullDB = asyncio.create_task(update_fulldb())
+    # updateFullDB = asyncio.create_task(update_fulldb()) #Uncomment if in possesion of fullDB
 
     await gatherData   # Data addition loop
     await c2Bot        # Discord bot loop
-    await updateFullDB # Full DB data gathering
+    # await updateFullDB # Full DB data gathering
 
 
 
@@ -52,5 +53,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except Exception as e:
-        log(traceback.format_exc(), file='files/log_errors.txt')
+        log(traceback.format_exc(), file=join('files', 'log_error.txt'))
 

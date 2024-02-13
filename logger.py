@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 import pytz
-
+from os.path import join
 
 # Timezone
 tz = pytz.timezone('UTC') 
@@ -13,7 +13,7 @@ def log_time(func):
         result = func(*arg, **kwargs)
         end = time.perf_counter()
 
-        log(f'{func.__name__} took {end - start} seconds.', 'files/log_time.txt')  
+        log(f'{func.__name__} took {end - start} seconds.', join('files', 'log_time.txt'))  
         return result
     return wrapper
 
@@ -23,7 +23,7 @@ def async_log_time(func):
         result = await func(*arg, **kwargs)
         end = time.perf_counter()
 
-        log(f'{func.__name__} took {end - start} seconds.', 'files/log_time.txt')  
+        log(f'{func.__name__} took {end - start} seconds.', join('files', 'log_time.txt'))  
         return result
     return wrapper
 
@@ -37,7 +37,7 @@ def moment(filename=False) -> str:
     return moment
 
 
-def log(string, file = 'files/log_general.txt', consoleLog = True):
+def log(string, file = join('files', 'log_general.txt'), consoleLog = True):
     log_output = moment() + ' ' + string + '\n'
     if consoleLog:
         print(log_output, end='')

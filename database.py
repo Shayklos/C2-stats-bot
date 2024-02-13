@@ -1,4 +1,5 @@
 import sqlite3, aiosqlite, asyncio, aiohttp
+from os.path import join
 from settings import * 
 from datetime import datetime,timedelta
 from pytz import timezone
@@ -207,7 +208,7 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
         if BASE_USER_URL == 'xxx':
                 print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL")
         else:
-            log(f"in update_profile_data: Couldn't add {userId}.", 'files/log_error.txt')
+            log(f"in update_profile_data: Couldn't add {userId}.", join('files', 'log_error.txt'))
         await asyncio.sleep(30)
         await update_profile_data(db, userId, add_to_netscores, commit)
         return
@@ -218,11 +219,14 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
     else:
         cur = await db.execute("select peakRank, peakRankScore, name from Users where userId = ?", (userId,))
         res = await cur.fetchone()
-        old_rank_data = (res[0], res[1]) #320.0, 8
-        old_name = res[2]
+        try:
+            old_rank_data = (res[0], res[1]) #320.0, 8
+            old_name = res[2]
+        except:
+            raise Exception(f"Crash here means there is a hole in the API. Manually add a row into Users table with userId = {userId} and name = ''")
         stats = data.get("stats")
         if stats.get("name") != old_name:
-            log(f"ID: {userId}: {old_name} → {stats.get('name')}", "files/log_namechanges.txt")
+            log(f"ID: {userId}: {old_name} → {stats.get('name')}", join('files', 'log_namechanges.txt'))
         query = """update Users 
                     set name = ?,
                         rank = ?,
@@ -365,7 +369,7 @@ async def update_userlist(db: aiosqlite.Connection):
             if BASE_USER_URL == 'xxx':
                 print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL")
             else:
-                log("No connection", 'files/log_errors.txt')
+                log("No connection", join('files', 'log_error.txt'))
             await asyncio.sleep(30)
             await update_userlist(db)
     
@@ -655,7 +659,7 @@ async def getNetscores(db: aiosqlite.Connection, days = 7, aproximation = True):
     """
     Intended to be the list of netscores to send to /netscores in bot.py
     """
-
+    #bugs out when selecting players that have not played longer than `days`
     cur = await db.execute(
         f"""with elegibleUsers as (select distinct userId as u from Rounds 
         inner join Matches on Matches.roundId = Rounds.roundId 
@@ -767,7 +771,7 @@ async def getPlayersWhoPlayedRecently(db: aiosqlite.Connection, hours=1):
 async def fuzzysearch(db: aiosqlite.Connection, username: str) -> tuple:
     cur = await db.execute("select userId, name from Users where name is not ''")
     users = await cur.fetchall()
-    ratios = sorted([(fuzz.ratio(username.lower(), user[1].lower()), user[0], user[1]) for user in users], reverse=True)
+    ratios = sorted([(fuzz.ratio(username.lower(), user[1].lower()), user[0], user[1]) for user in users], reverse=True)    
 
     return ratios[0]
 
@@ -821,7 +825,7 @@ on userId = u
             if BASE_USER_URL == 'xxx':
                 print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL.")
             else:
-                log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", "files/log_error.txt")
+                log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", join('files', 'log_error.txt'))
             await asyncio.sleep(30)
             await update_ranks(db, old_round, new_round, commit)
             return
@@ -838,7 +842,7 @@ on userId = u
             old_name = peak[2]
             stats = data.get("stats")
             if stats.get("name") != old_name:
-                log(f"ID: {id}: {old_name} → {stats.get('name')}", "files/log_namechanges.txt")
+                log(f"ID: {id}: {old_name} → {stats.get('name')}", join('files', 'log_namechanges.txt'))
             query = """update Users 
                         set name = ?,
                             
@@ -1419,8 +1423,9 @@ if __name__ == "__main__":
         db = await aiosqlite.connect(r"files\cultris.db")
         # db.row_factory = aiosqlite.Row
         # stats = await time_based_stats(db, 5840, days=30)
-        online = await getComboCount(db, '13', absolute=True, returnTitle=True)
-        print(online)
+        # online = await getComboCount(db, '13', absolute=True, returnTitle=True)
+        # print(online)
+        await update_profile_data(db, 17875)
         # leaderboard = await getPowerB(db, 30)
         # for l in leaderboard:
         #     print(f"{l[1]} {l[2]}")

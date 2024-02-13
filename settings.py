@@ -1,6 +1,7 @@
 import json
+import os
 
-with open("files/settings.json", "r") as file:
+with open(os.path.join('files','settings.json'), "r") as file:
     data = json.load(file)
 
 gatherDataRefreshRate         = data.get("gatherDataRefreshRate") if data.get("gatherDataRefreshRate")                 else 30
@@ -23,7 +24,7 @@ BASE_ROUNDS_URL               = data.get("BASE_ROUNDS_URL") if data.get("BASE_RO
 LIVEINFO_URL                  = data.get("LIVEINFO_URL") if data.get("LIVEINFO_URL")                                   else None
 deleteUserData                = data.get("deleteUserData") if data.get("deleteUserData")                               else True
 commandCooldown               = data.get("commandCooldown") if data.get("commandCooldown")                             else 120
-roundsUserdataDirectory       = data.get("roundsUserdataDirectory") if data.get("roundsUserdataDirectory")             else f"files/userdata/rounds/"
+roundsUserdataDirectory       = data.get("roundsUserdataDirectory").replace('/', os.sep) if data.get("roundsUserdataDirectory") else os.path.join("files", "userdata", "rounds") + os.sep
 
 if powerTableData := data.get("powerTable"):
     powerTableRange = data.get("powerTableRange")

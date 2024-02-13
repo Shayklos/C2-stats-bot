@@ -6,7 +6,8 @@ from typing import Any
 import asyncio, csv, sys, os
 from pytz import timezone
 from datetime import datetime
-sys.path.append('../c2-stats-bot')
+from os import sep
+sys.path.append(f'..{sep}c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView

@@ -5,7 +5,7 @@ from bot import developerMode
 from logger import log
 from settings import *
 from databaseexport import updateDatabase
-from os.path import isfile
+from os.path import isfile, join
 
 def getPage(page, data, pageSize = embedPageSize, isTime = False):
     
@@ -49,13 +49,13 @@ async def logInteraction(interaction:discord.Interaction):
                 if option.get('options'):
                     for suboption in option.get('options'):
                         log_output += f" [{suboption['name']} = {suboption['value']}]"
-    log(log_output, "files/log_discord.txt")
+    log(log_output, join('files', 'log_discord.txt'))
 
 
 
 async def checks(interaction: discord.Interaction):
     await logInteraction(interaction)
-    with open("files/settings.json", "r") as file:
+    with open(join('files', 'settings.json'), "r") as file:
         data = json.load(file)
     if data.get("locked"):
         await interaction.response.send_message(f"Bot a bit busy! Try again in a minute.", ephemeral=True)
@@ -76,7 +76,7 @@ def thousandsSeparator(n: int) -> str:
         return f'{n:,}'
 
 async def check_netscores(db):
-    with open("files/settings.json", "r") as file:
+    with open(join('files', 'settings.json'), "r") as file:
         data = json.load(file)
     now = time()
     diff = now - data.get("NetscoreTime")
@@ -86,20 +86,21 @@ async def check_netscores(db):
     
     data["NetscoreTime"] = int(now)
     data["locked"] = True
-    with open("files/settings.json", "w") as file:
+    with open(join('files', 'settings.json'), "w") as file:
         json.dump(data,file)
 
-    try:
-        await database.add_recent_profile_data(db,7,True,True)
-    except:
-        log("add_recent_profile_data failed!", "files/log_errors.txt")
+    # try:
+    await database.add_recent_profile_data(db,7,True,True)
+    # except Exception as e:
+        # print(e)        
+        # log("add_recent_profile_data failed!", e, "files/log_errors.txt")
         
     data["locked"] = False
-    with open("files/settings.json", "w") as file:
+    with open(join('files', 'settings.json'), "w") as file:
         json.dump(data,file)
 
 async def check_rankings(db):
-    with open("files/settings.json", "r") as file:
+    with open(join('files', 'settings.json'), "r") as file:
         data = json.load(file)
     now = time()
     diff = now - data.get("RefreshRankingsTime")
@@ -109,21 +110,21 @@ async def check_rankings(db):
     
     data["RefreshRankingsTime"] = int(now)
     data["locked"] = True
-    with open("files/settings.json", "w") as file:
+    with open(join('files', 'settings.json'), "w") as file:
         json.dump(data,file)
 
     await database.refresh_rankings(db,300)
     data["locked"] = False
-    with open("files/settings.json", "w") as file:
+    with open(join('files', 'settings.json'), "w") as file:
         json.dump(data,file)
 
-async def update_fulldb(path_to_db = "files/fullCultris.db"):
+async def update_fulldb(path_to_db = join('files', 'fullCultris.db')):
     #Check if db exists
     if not isfile(path_to_db):
         return
 
     while True:
-        with open("files/settings.json", "r") as file:
+        with open(join('files', 'settings.json'), "r") as file:
             data = json.load(file)
         
         now = time()
@@ -134,14 +135,14 @@ async def update_fulldb(path_to_db = "files/fullCultris.db"):
         
         data["UpdateDBTime"] = int(now)
         data["locked"] = True
-        with open("files/settings.json", "w") as file:
+        with open(join('files', 'settings.json'), "w") as file:
             json.dump(data,file)
 
-        updateDatabase("files/cultris.db", path_to_db)
+        updateDatabase(join('files', 'cultris.db'), path_to_db)
         log("Full DB updated")
         
         data["locked"] = False
-        with open("files/settings.json", "w") as file:
+        with open(join('files', 'settings.json'), "w") as file:
             json.dump(data,file)
 
         await asyncio.sleep(600)
@@ -151,7 +152,7 @@ def create_achievements_file(url):
     with urllib.request.urlopen(url) as URL:
         data = json.load(URL)
 
-    with open('files/extra/achievements.csv', 'w', newline='', encoding="utf-8") as csvfile:
+    with open(join('files', 'extra', 'achievements.csv'), 'w', newline='', encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile, delimiter=',',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
 

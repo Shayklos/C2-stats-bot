@@ -4,6 +4,7 @@ from discord.interactions import Interaction
 from discord.ui.item import Item
 from logger import *
 from settings import botTimeout
+from os.path import join
 
 """Default View class used with this bot."""
 
@@ -46,7 +47,7 @@ class CultrisView(discord.ui.View):
 
 
     def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
-        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]","files/log_discord.txt")
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]",join("files","log_discord.txt"))
 
     
     def embed(self, list, values, title = None, thumbnail = None, embed: discord.Embed = None):
