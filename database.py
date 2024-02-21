@@ -1084,7 +1084,7 @@ async def getPower(db: aiosqlite.Connection, days = 7, requiredMatches = require
         powerTable.get(2)*sum(PowerDict[player])/len(PowerDict[player]),
         len(PowerDict[player])
         )             
-             for player in PowerDict], 
+             for player in PowerDict if len(PowerDict[player]) > requiredMatches], 
           key=lambda x: x[2], reverse=True)
     ]
 
@@ -1142,7 +1142,7 @@ async def getPowerB(db: aiosqlite.Connection, days = 7, requiredMatches = requir
         powerTable.get(2)*sum(PowerDict[player])/TimeDict[player],
         len(PowerDict[player])
         )             
-             for player in PowerDict], 
+             for player in PowerDict if len(PowerDict[player]) > requiredMatches], 
           key=lambda x: x[2], reverse=True)
     ]
 
