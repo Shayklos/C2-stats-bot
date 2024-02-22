@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 import aiosqlite
 
-developerMode = True
+developerMode = False
 
 load_dotenv() 
 TOKEN = getenv('DISCORD_TOKEN') if not developerMode else getenv('DISCORD_TEST_TOKEN')
