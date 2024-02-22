@@ -18,7 +18,6 @@ files/elo.db
 files/extra/achievements.csv
 *.csv
 activity.py
-dblogger.py
 databasePlaceWriter.py
 *.ods
 files/extra/powerperroomsize.py
