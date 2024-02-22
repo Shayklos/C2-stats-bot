@@ -23,4 +23,3 @@ databasePlaceWriter.py
 *.ods
 files/extra/powerperroomsize.py
 *.csv#
-glicko.py
