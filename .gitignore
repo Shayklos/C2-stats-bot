@@ -24,3 +24,4 @@ databasePlaceWriter.py
 files/extra/powerperroomsize.py
 *.csv#
 glicko.py
+*.tmp
