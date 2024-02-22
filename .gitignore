@@ -14,7 +14,6 @@ leaderboardcalc.py
 files/settings.json
 *.png
 files/cultrisTest.db
-files/elo.db
 files/extra/achievements.csv
 *.csv
 activity.py
