@@ -117,6 +117,28 @@ class DevCommands(commands.Cog):
         await ctx.message.add_reaction("👍")
 
 
+    @commands.command()
+    async def addfaq(self, ctx: commands.Context, faq_question, *, faq_add): 
+        """
+        Adds a FAQ to /faq.
+        """
+        print("/addfaq was called by", ctx.author.name)
+
+        with open('commands/faq.py', 'r') as f:
+            l = f.read()
+
+        faqend = l.find('##FAQ_END')
+
+        #TODO aliases, f string for message, save into file
+        result = l[:faqend] + f"""@faq.command(aliases = aliases['c1soundtrack'])
+            async def c1soundtrack(self, ctx: commands.Context):
+                await uwu\n\n    """ + l[faqend:]
+
+        
+        await ctx.send(f"faq_question: {faq_question}, faq_add: {faq_add}")
+
+        await ctx.message.add_reaction("👍")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(DevCommands(bot))
     print("Dev commands were loaded.")
