@@ -24,6 +24,10 @@ class CultrisBot(commands.Bot):
         for command in ["".join(('commands.', command[:-3])) for command in listdir('commands') if command[-3:] == '.py']:
             await self.load_extension(command)
 
+        #Loads all events in 'events' folder
+        for command in ["".join(('events.', command[:-3])) for command in listdir('events') if command[-3:] == '.py']:
+            await self.load_extension(command)
+
         self.db = await aiosqlite.connect(join("files", "cultris.db"))
         self.db.row_factory = aiosqlite.Row
 
