@@ -1,9 +1,10 @@
 import discord
 from discord.ext import commands, tasks
-import sys, os
-sys.path.append('../c2-stats-bot')
-from settings import admins
 from datetime import datetime
+import sys
+sys.path.append('../c2-stats-bot')
+from settings import admins, COLOR_Default
+from database import getPlayersOnline
 import json
 
 class Game_Info(commands.Cog):
@@ -18,9 +19,19 @@ class Game_Info(commands.Cog):
 
     @tasks.loop(seconds=10)
     async def editor(self):
+        players = await getPlayersOnline()
+
+        embed = discord.Embed(
+                color=COLOR_Default,
+                description=players,
+                title="Players online"
+            )
+        
+        last_updated = f'<t:{int(datetime.now().timestamp())}:R>'
+
         for message in self.messages:
             message: discord.Message
-            await message.edit(content=f"{datetime.now()}")
+            await message.edit(content=f"Last updated: {last_updated}", embed=embed)
 
     @editor.before_loop
     async def before_printer(self):
