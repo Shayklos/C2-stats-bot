@@ -18,7 +18,6 @@ class Game_Info(commands.Cog):
 
     @tasks.loop(seconds=10)
     async def editor(self):
-        print(self.messages)
         for message in self.messages:
             message: discord.Message
             await message.edit(content=f"{datetime.now()}")
@@ -32,7 +31,7 @@ class Game_Info(commands.Cog):
             await self.bot.wait_until_ready()
             return
 
-        for message_data in messages.values():
+        for message_data in messages:
             channel = self.bot.get_channel(message_data.get('channel_id')) or await self.bot.fetch_channel(message_data.get('channel_id'))
             message = await channel.fetch_message(message_data.get('message_id'))
             self.messages.append(message)
@@ -45,7 +44,21 @@ class Game_Info(commands.Cog):
         message = await ctx.send(f"Online message.")
         self.messages.append(message)
 
+        try:
+            print(1)
+            with open("files/online_messages.json", 'r') as f:
+                msgs = json.load(f)
+            print(2)
+        except FileNotFoundError:
+            msgs = []
 
+        msgs.append({
+            'channel_id': message.channel.id,
+            'message_id': message.id
+        })
+
+        with open("files/online_messages.json", 'w') as f:
+            json.dump(msgs, f)
     
     
 async def setup(bot: commands.Bot):
