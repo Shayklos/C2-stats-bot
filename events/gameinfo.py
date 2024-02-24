@@ -1,13 +1,11 @@
 import discord
-from discord import app_commands
 from discord.ext import commands, tasks
 import sys, os
 sys.path.append('../c2-stats-bot')
 from settings import admins
-from textwrap import dedent
 from datetime import datetime
+import json
 
-"""Idea is to look into tasks.loop to edit periodically a msg. This is an example for the docs"""
 class Game_Info(commands.Cog):
     def __init__(self, bot: commands.Bot):
         super().__init__()
@@ -20,23 +18,33 @@ class Game_Info(commands.Cog):
 
     @tasks.loop(seconds=5.0)
     async def printer(self):
+        print(self.messages)
         for message in self.messages:
             message: discord.Message
             await message.edit(content=f"{datetime.now()}")
 
     @printer.before_loop
     async def before_printer(self):
-        print('waiting...')
+        try:
+            with open("files/online_messages.json", 'r') as f:
+                messages = json.load(f)
+        except FileNotFoundError:
+            await self.bot.wait_until_ready()
+            return
+
+        for message_data in messages.values():
+            channel = self.bot.get_channel(message_data.get('channel_id')) or await self.bot.fetch_channel(message_data.get('channel_id'))
+            message = channel.fetch_message(message_data.get('message_id'))
+            self.messages.append(message)
+
         await self.bot.wait_until_ready()
+        
 
     @commands.command()
     async def create_online_message(self, ctx: commands.Context):
-        if ctx.author.name not in admins:
-            return
-        
-        print("/ping was called by", ctx.author.name)
         message = await ctx.send(f"Online message.")
         self.messages.append(message)
+
 
     
     
