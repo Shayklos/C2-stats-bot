@@ -11,19 +11,19 @@ class Game_Info(commands.Cog):
         super().__init__()
         self.bot: commands.Bot = bot 
         self.messages = []
-        self.printer.start()
+        self.editor.start()
 
     def cog_unload(self):
-        self.printer.cancel()
+        self.editor.cancel()
 
-    @tasks.loop(seconds=5.0)
-    async def printer(self):
+    @tasks.loop(seconds=10)
+    async def editor(self):
         print(self.messages)
         for message in self.messages:
             message: discord.Message
             await message.edit(content=f"{datetime.now()}")
 
-    @printer.before_loop
+    @editor.before_loop
     async def before_printer(self):
         try:
             with open("files/online_messages.json", 'r') as f:
@@ -34,12 +34,12 @@ class Game_Info(commands.Cog):
 
         for message_data in messages.values():
             channel = self.bot.get_channel(message_data.get('channel_id')) or await self.bot.fetch_channel(message_data.get('channel_id'))
-            message = channel.fetch_message(message_data.get('message_id'))
+            message = await channel.fetch_message(message_data.get('message_id'))
             self.messages.append(message)
 
         await self.bot.wait_until_ready()
         
-
+    @commands.check(lambda ctx : ctx.author.name in admins)
     @commands.command()
     async def create_online_message(self, ctx: commands.Context):
         message = await ctx.send(f"Online message.")
