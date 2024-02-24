@@ -45,10 +45,8 @@ class Game_Info(commands.Cog):
         self.messages.append(message)
 
         try:
-            print(1)
             with open("files/online_messages.json", 'r') as f:
                 msgs = json.load(f)
-            print(2)
         except FileNotFoundError:
             msgs = []
 
@@ -60,7 +58,26 @@ class Game_Info(commands.Cog):
         with open("files/online_messages.json", 'w') as f:
             json.dump(msgs, f)
     
-    
+    @commands.check(lambda ctx : ctx.author.name in admins)
+    @commands.command()
+    async def delete_online_message_connection(self, ctx: commands.Context, id: int):
+        try:
+            with open("files/online_messages.json", 'r') as f:
+                msgs = json.load(f)
+        except FileNotFoundError:
+            return
+        
+        for msg in msgs:
+            if id == msg.get('message_id'):
+                msgs.remove(msg)
+
+        for message in self.messages:
+            if message.id == id:
+                self.messages.remove(message)
+
+        with open("files/online_messages.json", 'w') as f:
+            json.dump(msgs, f)
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Game_Info(bot))
     print(f"Loaded Game_Info event.")
