@@ -7,7 +7,7 @@ from logger import *
 from thefuzz import fuzz
 from time import sleep
 from methods import *
-
+from PIL import Image, ImageDraw, ImageFont
 
 
 async def newest_round(db: aiosqlite.Connection):
@@ -753,6 +753,39 @@ async def getPlayersOnline():
     return result
         
     
+async def getPlayersOnlineImg():
+    import json
+    liveinfo = json.loads("""{"players":[{"id":17322,"name":"BB1982","guest":false,"currentscore":0,"afk":false,"room":false,"team":false,"challenge":"","avatarhash":"4bcc4885b73e79875e0c8b21fdfb7912","status":"lobby","country":"CH"},{"id":26890,"name":"Wild","guest":false,"currentscore":15,"afk":false,"room":-42,"team":"BLUE","challenge":"","avatarhash":"9204ecd055ce04c26489b4033b45d772","status":"room","country":"GB"},{"id":5840,"name":"Shay","guest":false,"currentscore":22,"afk":false,"room":-42,"team":"RED","challenge":"","avatarhash":"e195120a8c7ad45b5b8cd19cc6095366","status":"room","country":"--"},{"id":2529,"name":"RT-SOLDAT","guest":false,"currentscore":0,"afk":false,"room":false,"team":false,"challenge":"","avatarhash":"4009c944f254e61d8f72b3d68df418bd","status":"lobby","country":"--"},{"id":579,"name":"kevincentius","guest":false,"currentscore":25,"afk":false,"room":-42,"team":"RED","challenge":"","avatarhash":"64eb37d5f8b305ffdbff234473ac666e","status":"room","country":"--"},{"id":12795,"name":"z2sam","guest":false,"currentscore":14,"afk":false,"room":-42,"team":"BLUE","challenge":"","avatarhash":"2945f81b186ce12095560235583f2020","status":"room","country":"VN"},{"id":-1,"name":"kancer s kovid","guest":true,"currentscore":0,"afk":false,"room":0,"team":false,"challenge":"","avatarhash":"anon","status":"room","country":"BA"}],"rooms":[{"id":0,"name":"Free for all","mode":"Standard","protected":false,"teamplay":false,"maxplayers":2147483647,"players":1,"bestplayer":{"id":-1,"name":"kancer s kovid","guest":true,"score":0}},{"id":1,"name":"Rookie playground","mode":"Standard","protected":false,"teamplay":false,"maxplayers":2147483647,"players":0},{"id":2,"name":"Cheese factory","mode":"Swiss cheese","protected":false,"teamplay":false,"maxplayers":2147483647,"players":0},{"id":-42,"name":"Wild's room","mode":"Standard","protected":false,"teamplay":true,"maxplayers":2147483647,"players":4,"bestplayer":{"id":579,"name":"kevincentius","guest":false,"score":25}}]}""")
+    rooms = {}
+    for room in liveinfo.get('rooms'):
+        this_room = {room.get('id') : {}}
+        this_room.get(room.get('id')).update({'name' : room.get('name')})
+        this_room.get(room.get('id')).update({'id' : room.get('id')})
+        this_room.get(room.get('id')).update({'size' : 0})
+        this_room.get(room.get('id')).update({'players' : []})
+
+        rooms.update(this_room)
+
+    max_size = 0
+    for player in liveinfo.get('players'):
+        this_player = {player.get('id') : {}}
+        this_player.get(player.get('id')).update({'currentscore' : player.get('currentscore')})
+
+        if player.get('room'):
+            room  = rooms.get(player.get('room')) 
+            room.get('players').append(this_player)
+            room['size'] += 1
+            max_size = max(max_size, room['size'])
+
+    print(max_size)
+    bold    = ImageFont.truetype(font='files/arialbd.ttf', size = 30)
+    regular = ImageFont.truetype(font='files/arial.ttf', size = 30)
+    for room in rooms.values():
+        if room['size'] == 0: continue
+        height = bold.getbbox(room['name'])
+        print(height)
+
+
 
 async def getPlayersWhoPlayedRecently(db: aiosqlite.Connection, hours=1):
     date_now = datetime.now(tz = timezone('UTC'))
@@ -1425,7 +1458,11 @@ if __name__ == "__main__":
         # stats = await time_based_stats(db, 5840, days=30)
         # online = await getComboCount(db, '13', absolute=True, returnTitle=True)
         # print(online)
-        await update_profile_data(db, 17875)
+        img = await getPlayersOnlineImg()
+        try:
+            img.show()
+        except:
+            pass
         # leaderboard = await getPowerB(db, 30)
         # for l in leaderboard:
         #     print(f"{l[1]} {l[2]}")

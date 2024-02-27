@@ -1,0 +1,145 @@
+{
+    "players": [
+        {
+            "id": 17322,
+            "name": "BB1982",
+            "guest": false,
+            "currentscore": 0,
+            "afk": false,
+            "room": false,
+            "team": false,
+            "challenge": "",
+            "avatarhash": "4bcc4885b73e79875e0c8b21fdfb7912",
+            "status": "lobby",
+            "country": "CH"
+        },
+        {
+            "id": 26890,
+            "name": "Wild",
+            "guest": false,
+            "currentscore": 15,
+            "afk": false,
+            "room": -42,
+            "team": "BLUE",
+            "challenge": "",
+            "avatarhash": "9204ecd055ce04c26489b4033b45d772",
+            "status": "room",
+            "country": "GB"
+        },
+        {
+            "id": 5840,
+            "name": "Shay",
+            "guest": false,
+            "currentscore": 22,
+            "afk": false,
+            "room": -42,
+            "team": "RED",
+            "challenge": "",
+            "avatarhash": "e195120a8c7ad45b5b8cd19cc6095366",
+            "status": "room",
+            "country": "--"
+        },
+        {
+            "id": 2529,
+            "name": "RT-SOLDAT",
+            "guest": false,
+            "currentscore": 0,
+            "afk": false,
+            "room": false,
+            "team": false,
+            "challenge": "",
+            "avatarhash": "4009c944f254e61d8f72b3d68df418bd",
+            "status": "lobby",
+            "country": "--"
+        },
+        {
+            "id": 579,
+            "name": "kevincentius",
+            "guest": false,
+            "currentscore": 25,
+            "afk": false,
+            "room": -42,
+            "team": "RED",
+            "challenge": "",
+            "avatarhash": "64eb37d5f8b305ffdbff234473ac666e",
+            "status": "room",
+            "country": "--"
+        },
+        {
+            "id": 12795,
+            "name": "z2sam",
+            "guest": false,
+            "currentscore": 14,
+            "afk": false,
+            "room": -42,
+            "team": "BLUE",
+            "challenge": "",
+            "avatarhash": "2945f81b186ce12095560235583f2020",
+            "status": "room",
+            "country": "VN"
+        },
+        {
+            "id": -1,
+            "name": "kancer s kovid",
+            "guest": true,
+            "currentscore": 0,
+            "afk": false,
+            "room": 0,
+            "team": false,
+            "challenge": "",
+            "avatarhash": "anon",
+            "status": "room",
+            "country": "BA"
+        }
+    ],
+    "rooms": [
+        {
+            "id": 0,
+            "name": "Free for all",
+            "mode": "Standard",
+            "protected": false,
+            "teamplay": false,
+            "maxplayers": 2147483647,
+            "players": 1,
+            "bestplayer": {
+                "id": -1,
+                "name": "kancer s kovid",
+                "guest": true,
+                "score": 0
+            }
+        },
+        {
+            "id": 1,
+            "name": "Rookie playground",
+            "mode": "Standard",
+            "protected": false,
+            "teamplay": false,
+            "maxplayers": 2147483647,
+            "players": 0
+        },
+        {
+            "id": 2,
+            "name": "Cheese factory",
+            "mode": "Swiss cheese",
+            "protected": false,
+            "teamplay": false,
+            "maxplayers": 2147483647,
+            "players": 0
+        },
+        {
+            "id": -42,
+            "name": "Wild's room",
+            "mode": "Standard",
+            "protected": false,
+            "teamplay": true,
+            "maxplayers": 2147483647,
+            "players": 4,
+            "bestplayer": {
+                "id": 579,
+                "name": "kevincentius",
+                "guest": false,
+                "score": 25
+            }
+        }
+    ]
+}
