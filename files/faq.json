@@ -1,0 +1,36 @@
+{
+    "aliases": {
+        "webmaster": [
+            "web",
+            "website",
+            "update",
+            "updates"
+        ],
+        "mac": [
+            "macos"
+        ],
+        "patch": [
+            "patches",
+            "mod"
+        ],
+        "help": [],
+        "simon": [
+            "c2developer",
+            "c2devs",
+            "c2dev",
+            "dev",
+            "devs",
+            "developer"
+        ],
+        "c1soundtrack": [
+            "c1ost",
+            "c1music",
+            "c1songs"
+        ]
+    },
+    "faqs": {
+        "simon": "abc",
+        "c1soundtrack": "xyz",
+        "patch": "The Cultris II patch made by Def, significantly improves the game's performance.\n[You can download it here](https://github.com/zDEFz/c2-patch). There's a video in the description with indications in how to install the patch (it's easy!). This patch also allows disabling some ingame sounds, for additional performance gain."
+    }
+}
