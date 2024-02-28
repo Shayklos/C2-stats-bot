@@ -6,71 +6,130 @@ from os import sep
 sys.path.append(f'..{sep}c2-stats-bot')
 from settings import admins
 from textwrap import dedent
-
-aliases = {
-    'webmaster' : ['web', 'website', 'update', 'updates'],
-    'mac' : ['macos'],
-    'patch' : ['patches', 'mod'],
-    'help' : [],
-    'simon' : ['c2developer', 'c2devs', 'c2dev', 'dev', 'devs', 'developer'],
-    'c1soundtrack' : ['c1ost', 'c1music', 'c1songs'],
-}
+import json
 
 class FAQ_Commands(commands.Cog):
+    """
+    Cog that manages all related to the /faq command. 
+
+    Usage:
+    /faq [question]
+        will make the bot send an answer to [question]. The anser to this question is stored in files/faq.json. 
+        Different values of [question] will grant the same reply, these are managed in the `aliases` in files/faq.json. 
+
+    /faq add question [name] [answer]
+        will add a question named [name] with the answer [answer]
+
+    /faq delete question [name]
+        will delete the question named [name]. /faq remove question [name] also works. 
+
+    /faq add alias [question] [aliases]
+        will add aliases [aliases] to question [question]. The aliases, if more than one, should be separated by spaces. /faq add aliases [question] [aliases] also works.
+
+    /faq delete alias [question] [aliases]
+        will remove aliases [aliases] from question [question]. The aliases, if more than one, should be separated by spaces. /faq remove aliases [question] [aliases] also works.    
+
+
+    TODO:
+        -/faq edit question [question] [answer] to edit a question
+        -/faq edit alias|aliases [question] [aliases] to edit a question's aliases
+        -/faq aliases [question] to show aliases related to a specific question
+        -/faq delete alias should be able to delete the main question name, if there is an alias for that question
+        -/faq delete question should work with aliases without the need to input main question name
+    """
     def __init__(self, bot: commands.Bot):
         super().__init__()
         self.bot = bot 
-
-    @commands.group()
-    async def faq(self, ctx: commands.Context):
-        if ctx.invoked_subcommand is None:
-            command = self.bot.get_command('faq help')
-            ctx.command = command
-            ctx.invoked_subcommand = command
-            await self.bot.invoke(ctx)
-
-    @faq.command(aliases = aliases['help'])
-    async def help(self, ctx: commands.Context):
+               
+    @staticmethod
+    def available_faqs(aliases_dict: dict, long = True) -> str:
         s = ""
-        for command in aliases.keys():
-            s += f"/faq {command}{' '*(20 - len(command))}{aliases.get(command)}\n"
-        await ctx.reply(dedent(s), ephemeral = True)
+        for name, aliases in aliases_dict.items():
+            line = f"/faq {name}"
+            if long and aliases : line += " | " + " | ".join(alias for alias in aliases)
+            s += line + '\n'
+
+        # Avoid reaching Discord message limit of 2000 characters. Now, you should think about separating this into different messages. Reflect on what you've done and what you've accomplished. Consider the consequences of your acts.
+        if len(s) > 2000: return FAQ_Commands.available_faqs(aliases_dict, long = False)
+        return s
+
+    @commands.group(invoke_without_command = True)
+    async def faq(self, ctx: commands.Context, question: str):
+        with open("files/faq.json") as f: faq = json.load(f)
         
-    @faq.command(aliases = aliases['webmaster'])
-    async def webmaster(self, ctx: commands.Context):
-        await ctx.reply(dedent("""
-            Simon, Cultris II developer, has stated he will update the game only after the game has a webmaster.
-            Anyone can apply to be one, although this would be a long term job with no pay. Contact Simon via email: `de@iru.ch`"""))
+        # Check if the question is directly in faqs
+        if answer := faq['faqs'].get(question):
+            await ctx.reply(content = answer)
+
+        # Check if the question is one of the aliases instead
+        else:
+            for name, aliases in faq['aliases'].items():
+                if question in aliases:
+                    await ctx.reply(content = faq['faqs'][name])
+                    return
+                
+            # Question not in FAQ, default to list of faqs
+            else:
+                await ctx.reply(content = FAQ_Commands.available_faqs(faq['aliases']))
+
+    @faq.group()
+    async def add(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.reply(content="/faq add question [question] [answer]\n /faq add alias [question] [new_alias] [new_alias] ... [new_alias]")
+
+    @add.command(name="question")
+    async def add_question(self, ctx: commands.Context, question: str, *, answer: str):
+        with open("files/faq.json") as f: faq = json.load(f)
+        faq['faqs'][question] = answer
+        faq['aliases'][question] = []
+        with open("files/faq.json", 'w') as f: json.dump(faq, f)
+
+    @add.command(name="alias", aliases = ["aliases"])
+    async def add_alias(self, ctx: commands.Context, question: str, *, new_aliases: str):
+        with open("files/faq.json") as f: faq = json.load(f)
+        if faq['aliases'].get(question) is not None: 
+            for alias in new_aliases.split(): faq['aliases'][question].append(alias.lower())
+        else:
+            for name, aliases in faq['aliases'].items():
+                if question in aliases:
+                    for alias in new_aliases.split(): 
+                        faq['aliases'][name].append(alias.lower())
+                    break
+            else:
+                await ctx.reply(content = "No question with that name.")
+        with open("files/faq.json", 'w') as f: json.dump(faq, f)
+
+    @faq.group(aliases = ["remove"])
+    async def delete(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.reply(content="/faq delete question [question] [answer]\n /faq delete alias [question] [alias_to_remove] [alias_to_remove] ... [alias_to_remove]")
+        
+    @delete.command(name="question")
+    async def delete_question(self, ctx: commands.Context, question: str):
+        with open("files/faq.json") as f: faq = json.load(f)
+        try: 
+            faq['faqs'].pop(question)
+            faq['aliases'].pop(question)
             
-    @faq.command(aliases = aliases['simon'])
-    async def simon(self, ctx: commands.Context):
-        await ctx.reply(dedent("""
-            Cultris II only developer is Simon Felix. The only way to get in touch with Simon is via email: `de@iru.ch`"""))       
-        
-        
-    @faq.command(aliases = aliases['mac'])
-    async def mac(self, ctx: commands.Context):
-        await ctx.reply(dedent("""
-            There's no official support for macOS.
-            However, some users have reported they were able to play using external software, check:
-            https://discord.com/channels/202843125633384448/516686648201707548/1182624707716055040
-            https://discord.com/channels/202843125633384448/516689168223567872/1042891393019953172"""))
+        except KeyError: await ctx.reply(content="No question with that name.")
+        with open("files/faq.json", 'w') as f: json.dump(faq, f)
 
-    @faq.command(aliases = aliases['patch'])
-    async def patch(self, ctx: commands.Context):
-        await ctx.reply(dedent("""
-            The Cultris II patch made by Def, significantly improves the game's performance.
-            [You can download it here](https://github.com/zDEFz/c2-patch). There's a video in the description with indications in how to install the patch (it's easy!). This patch also allows disabling some ingame sounds, for additional performance gain."""))
+    @delete.command(name="alias", aliases = ["aliases"])
+    async def delete_alias(self, ctx: commands.Context, question: str, *, alias_to_remove: str):
+        with open("files/faq.json") as f: faq = json.load(f)
+        if faq['aliases'].get(question) is not None: 
+            for alias in alias_to_remove.split(): faq['aliases'][question].remove(alias)
+        else:
+            for name, aliases in faq['aliases'].items():
+                if question in aliases:
+                    for alias in alias_to_remove.split(): 
+                        faq['aliases'][name].remove(alias)
+                    break
+            else:
+                await ctx.reply(content = "No question with that name.")
+        with open("files/faq.json", 'w') as f: json.dump(faq, f)
 
-    @faq.command(aliases = aliases['c1soundtrack'])
-    async def c1soundtrack(self, ctx: commands.Context):
-        await ctx.reply(dedent("""
-            [Here's a list of the songs in Cultris I](https://docs.google.com/spreadsheets/d/1MPaLgEnlx9bNBmmwzxY0UeiotZ7LZ8VXz64qYdMU24I)."""))
-        
-    
-    ##FAQ_END
-    
-    
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(FAQ_Commands(bot))
     print(f"Loaded /faq command.")

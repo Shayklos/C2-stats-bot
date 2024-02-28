@@ -1,0 +1,39 @@
+{
+    "faqs": {
+        "patch": "The Cultris II patch made by Def, significantly improves the game's performance.\n[You can download it here](https://github.com/zDEFz/c2-patch). There's a video in the description with indications in how to install the patch (it's easy!). This patch also allows disabling some ingame sounds, for additional performance gain.",
+        "webmaster": "Simon, Cultris II developer, has stated he will update the game only after the game has a webmaster. Anyone can apply to be one, although this would be a long term job with no pay. Contact Simon via email: `de@iru.ch`",
+        "simon": "Cultris II only developer is Simon Felix. The only way to get in touch with Simon is via email: `de@iru.ch`",
+        "mac": "There's no official support for macOS.\nHowever, some users have reported they were able to play using external software, check:\nhttps://discord.com/channels/202843125633384448/516686648201707548/1182624707716055040\nhttps://discord.com/channels/202843125633384448/516689168223567872/1042891393019953172",
+        "c1soundtrack": "[Here's a list of the songs in Cultris I](https://docs.google.com/spreadsheets/d/1MPaLgEnlx9bNBmmwzxY0UeiotZ7LZ8VXz64qYdMU24I)."
+    },
+    "aliases": {
+        "patch": [
+            "patches",
+            "mod"
+        ],
+        "webmaster": [
+            "web",
+            "website",
+            "update",
+            "updates"
+        ],
+        "simon": [
+            "c2developer",
+            "c2dev",
+            "c2devs",
+            "dev",
+            "devs",
+            "developer",
+            "developers",
+            "c2developers"
+        ],
+        "mac": [
+            "macos"
+        ],
+        "c1soundtrack": [
+            "c1ost",
+            "c1music",
+            "c1songs"
+        ]
+    }
+}
