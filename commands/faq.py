@@ -9,6 +9,34 @@ from textwrap import dedent
 import json
 
 class FAQ_Commands(commands.Cog):
+    """
+    Cog that manages all related to the /faq command. 
+
+    Usage:
+    /faq [question]
+        will make the bot send an answer to [question]. The anser to this question is stored in files/faq.json. 
+        Different values of [question] will grant the same reply, these are managed in the `aliases` in files/faq.json. 
+
+    /faq add question [name] [answer]
+        will add a question named [name] with the answer [answer]
+
+    /faq delete question [name]
+        will delete the question named [name]. /faq remove question [name] also works. 
+
+    /faq add alias [question] [aliases]
+        will add aliases [aliases] to question [question]. The aliases, if more than one, should be separated by spaces. /faq add aliases [question] [aliases] also works.
+
+    /faq delete alias [question] [aliases]
+        will remove aliases [aliases] from question [question]. The aliases, if more than one, should be separated by spaces. /faq remove aliases [question] [aliases] also works.    
+
+
+    TODO:
+        -/faq edit question [question] [answer] to edit a question
+        -/faq edit alias|aliases [question] [aliases] to edit a question's aliases
+        -/faq aliases [question] to show aliases related to a specific question
+        -/faq delete alias should be able to delete the main question name, if there is an alias for that question
+        -/faq delete question should work with aliases without the need to input main question name
+    """
     def __init__(self, bot: commands.Bot):
         super().__init__()
         self.bot = bot 
