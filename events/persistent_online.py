@@ -35,7 +35,7 @@ class Game_Info(commands.Cog):
             await message.edit(content=f"Last updated: {last_updated}", embed=embed)
 
     @editor.before_loop
-    async def before_printer(self):
+    async def before_editor(self):
         try:
             with open(join("files", "online_messages.json"), 'r') as f:
                 messages = json.load(f)
@@ -89,6 +89,11 @@ class Game_Info(commands.Cog):
 
         with open(join("files", "online_messages.json"), 'w') as f:
             json.dump(msgs, f)
+
+    @commands.check(lambda ctx : ctx.author.name in admins)
+    @commands.command()
+    async def change_online_message_update_frequency(self, ctx: commands.Context, seconds: int):
+        self.editor.change_interval(seconds = seconds)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Game_Info(bot))
