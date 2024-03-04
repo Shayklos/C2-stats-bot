@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from datetime import datetime
 import sys
+from os.path import join
 sys.path.append('../c2-stats-bot')
 from settings import admins, COLOR_Default
 from database import getPlayersOnline
@@ -36,7 +37,7 @@ class Game_Info(commands.Cog):
     @editor.before_loop
     async def before_printer(self):
         try:
-            with open("files/online_messages.json", 'r') as f:
+            with open(join("files", "online_messages.json"), 'r') as f:
                 messages = json.load(f)
         except FileNotFoundError:
             await self.bot.wait_until_ready()
@@ -56,7 +57,7 @@ class Game_Info(commands.Cog):
         self.messages.append(message)
 
         try:
-            with open("files/online_messages.json", 'r') as f:
+            with open(join("files", "online_messages.json"), 'r') as f:
                 msgs = json.load(f)
         except FileNotFoundError:
             msgs = []
@@ -66,14 +67,14 @@ class Game_Info(commands.Cog):
             'message_id': message.id
         })
 
-        with open("files/online_messages.json", 'w') as f:
+        with open(join("files", "online_messages.json"), 'w') as f:
             json.dump(msgs, f)
     
     @commands.check(lambda ctx : ctx.author.name in admins)
     @commands.command()
     async def delete_online_message_connection(self, ctx: commands.Context, id: int):
         try:
-            with open("files/online_messages.json", 'r') as f:
+            with open(join("files", "online_messages.json"), 'r') as f:
                 msgs = json.load(f)
         except FileNotFoundError:
             return
@@ -86,7 +87,7 @@ class Game_Info(commands.Cog):
             if message.id == id:
                 self.messages.remove(message)
 
-        with open("files/online_messages.json", 'w') as f:
+        with open(join("files", "online_messages.json"), 'w') as f:
             json.dump(msgs, f)
 
 async def setup(bot: commands.Bot):

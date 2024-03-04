@@ -1,7 +1,8 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import sys, os
+import sys
+from os.path import join
 from os import sep
 sys.path.append(f'..{sep}c2-stats-bot')
 from settings import admins
@@ -55,7 +56,7 @@ class FAQ_Commands(commands.Cog):
 
     @commands.group(invoke_without_command = True)
     async def faq(self, ctx: commands.Context, question: str):
-        with open("files/faq.json") as f: faq = json.load(f)
+        with open(join("files", "faq.json")) as f: faq = json.load(f)
         
         # Check if the question is directly in faqs
         if answer := faq['faqs'].get(question):
@@ -79,14 +80,14 @@ class FAQ_Commands(commands.Cog):
 
     @add.command(name="question")
     async def add_question(self, ctx: commands.Context, question: str, *, answer: str):
-        with open("files/faq.json") as f: faq = json.load(f)
+        with open(join("files", "faq.json")) as f: faq = json.load(f)
         faq['faqs'][question] = answer
         faq['aliases'][question] = []
-        with open("files/faq.json", 'w') as f: json.dump(faq, f)
+        with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
     @add.command(name="alias", aliases = ["aliases"])
     async def add_alias(self, ctx: commands.Context, question: str, *, new_aliases: str):
-        with open("files/faq.json") as f: faq = json.load(f)
+        with open(join("files", "faq.json")) as f: faq = json.load(f)
         if faq['aliases'].get(question) is not None: 
             for alias in new_aliases.split(): faq['aliases'][question].append(alias.lower())
         else:
@@ -97,7 +98,7 @@ class FAQ_Commands(commands.Cog):
                     break
             else:
                 await ctx.reply(content = "No question with that name.")
-        with open("files/faq.json", 'w') as f: json.dump(faq, f)
+        with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
     @faq.group(aliases = ["remove"])
     async def delete(self, ctx: commands.Context):
@@ -106,17 +107,17 @@ class FAQ_Commands(commands.Cog):
         
     @delete.command(name="question")
     async def delete_question(self, ctx: commands.Context, question: str):
-        with open("files/faq.json") as f: faq = json.load(f)
+        with open(join("files", "faq.json")) as f: faq = json.load(f)
         try: 
             faq['faqs'].pop(question)
             faq['aliases'].pop(question)
             
         except KeyError: await ctx.reply(content="No question with that name.")
-        with open("files/faq.json", 'w') as f: json.dump(faq, f)
+        with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
     @delete.command(name="alias", aliases = ["aliases"])
     async def delete_alias(self, ctx: commands.Context, question: str, *, alias_to_remove: str):
-        with open("files/faq.json") as f: faq = json.load(f)
+        with open(join("files", "faq.json")) as f: faq = json.load(f)
         if faq['aliases'].get(question) is not None: 
             for alias in alias_to_remove.split(): faq['aliases'][question].remove(alias)
         else:
@@ -127,7 +128,7 @@ class FAQ_Commands(commands.Cog):
                     break
             else:
                 await ctx.reply(content = "No question with that name.")
-        with open("files/faq.json", 'w') as f: json.dump(faq, f)
+        with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
 
 async def setup(bot: commands.Bot):

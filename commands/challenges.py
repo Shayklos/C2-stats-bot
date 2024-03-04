@@ -5,6 +5,7 @@ from discord.ui.item import Item
 from typing import Any
 import sys, traceback
 from os import sep
+from os.path import join
 sys.path.append(f'..{sep}c2-stats-bot')
 from logger import *
 from CultrisView import CultrisView
@@ -19,7 +20,7 @@ class ChallengeButton(discord.ui.Button):
         self.view: ChallengesView
 
         self.view.challenge = self.label
-        log(f"{self.view.interactionUser.display_name} ({self.view.interactionUser.name}) on {self.view.command} pressed button {self.label}", "files/log_discord.txt")
+        log(f"{self.view.interactionUser.display_name} ({self.view.interactionUser.name}) on {self.view.command} pressed button {self.label}", join("files", "log_discord.txt"))
         await interaction.response.edit_message(embed = self.view.createEmbed(interaction), view = self.view)
 
 
