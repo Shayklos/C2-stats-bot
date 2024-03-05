@@ -53,5 +53,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except Exception as e:
-        log(traceback.format_exc(), file=join('files', 'log_error.txt'))
+        log(traceback.format_exc(), file=join('files', 'logs', 'error.txt'))
 

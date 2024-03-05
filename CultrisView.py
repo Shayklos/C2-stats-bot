@@ -47,7 +47,7 @@ class CultrisView(discord.ui.View):
 
 
     def logButton(self, interaction: discord.Interaction, button: discord.ui.Button):
-        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]",join("files","log_discord.txt"))
+        log(f"{interaction.user.display_name} ({interaction.user.name}) in {self.command} pressed [{button.label}]",join("files", "logs", "discord.txt"))
 
     
     def embed(self, list, values, title = None, thumbnail = None, embed: discord.Embed = None):

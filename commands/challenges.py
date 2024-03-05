@@ -20,7 +20,7 @@ class ChallengeButton(discord.ui.Button):
         self.view: ChallengesView
 
         self.view.challenge = self.label
-        log(f"{self.view.interactionUser.display_name} ({self.view.interactionUser.name}) on {self.view.command} pressed button {self.label}", join("files", "log_discord.txt"))
+        log(f"{self.view.interactionUser.display_name} ({self.view.interactionUser.name}) on {self.view.command} pressed button {self.label}", join("files", "logs", "discord.txt"))
         await interaction.response.edit_message(embed = self.view.createEmbed(interaction), view = self.view)
 
 

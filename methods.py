@@ -49,7 +49,7 @@ async def logInteraction(interaction:discord.Interaction):
                 if option.get('options'):
                     for suboption in option.get('options'):
                         log_output += f" [{suboption['name']} = {suboption['value']}]"
-    log(log_output, join('files', 'log_discord.txt'))
+    log(log_output, join('files', 'logs', 'discord.txt'))
 
 
 

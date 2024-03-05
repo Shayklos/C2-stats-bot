@@ -208,7 +208,7 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
         if BASE_USER_URL == 'xxx':
                 print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL")
         else:
-            log(f"in update_profile_data: Couldn't add {userId}.", join('files', 'log_error.txt'))
+            log(f"in update_profile_data: Couldn't add {userId}.", join('files', 'logs', 'error.txt'))
         await asyncio.sleep(30)
         await update_profile_data(db, userId, add_to_netscores, commit)
         return
@@ -226,7 +226,7 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
             raise Exception(f"Crash here means there is a hole in the API. Manually add a row into Users table with userId = {userId} and name = ''")
         stats = data.get("stats")
         if stats.get("name") != old_name:
-            log(f"ID: {userId}: {old_name} → {stats.get('name')}", join('files', 'log_namechanges.txt'))
+            log(f"ID: {userId}: {old_name} → {stats.get('name')}", join('files', 'logs', 'namechanges.txt'))
         query = """update Users 
                     set name = ?,
                         rank = ?,
@@ -369,7 +369,7 @@ async def update_userlist(db: aiosqlite.Connection):
             if BASE_USER_URL == 'xxx':
                 print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL")
             else:
-                log("No connection", join('files', 'log_error.txt'))
+                log("No connection", join('files', 'logs', 'error.txt'))
             await asyncio.sleep(30)
             await update_userlist(db)
     
@@ -825,7 +825,7 @@ on userId = u
             if BASE_USER_URL == 'xxx':
                 print("You haven't introduced the API URL into 'settings.json' for BASE_USER_URL.")
             else:
-                log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", join('files', 'log_error.txt'))
+                log(f"in update_ranks: Couldn't add {id}. old_round: {old_round}; new_round:{old_round}. Manually call this function with given old_round, newest round?", join('files', 'logs', 'error.txt'))
             await asyncio.sleep(30)
             await update_ranks(db, old_round, new_round, commit)
             return
@@ -842,7 +842,7 @@ on userId = u
             old_name = peak[2]
             stats = data.get("stats")
             if stats.get("name") != old_name:
-                log(f"ID: {id}: {old_name} → {stats.get('name')}", join('files', 'log_namechanges.txt'))
+                log(f"ID: {id}: {old_name} → {stats.get('name')}", join('files', 'logs', 'namechanges.txt'))
             query = """update Users 
                         set name = ?,
                             
