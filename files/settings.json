@@ -1,7 +1,7 @@
 {
     "locked": false,
-    "NetscoreTime": 1700600672,
-    "RefreshRankingsTime": 1700487662,
+    "NetscoreTime": 1709665482,
+    "RefreshRankingsTime": 1709118699,
     "UpdateDBTime": 1700650562,
     "admins": [
         "yoozenji",
@@ -15,9 +15,6 @@
     "approved_users": {
         "percent4989": 12659
     },
-    "BASE_USER_URL": "xxx",
-    "BASE_ROUNDS_URL": "xxx",
-    "LIVEINFO_URL": "xxx",
     "gatherDataRefreshRate": 30,
     "dbDaysLimit": 30,
     "embedPageSize": 20,

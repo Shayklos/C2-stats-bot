@@ -1,6 +1,8 @@
 import json
 import os
+from dotenv import load_dotenv
 
+load_dotenv() 
 with open(os.path.join('files','settings.json'), "r") as file:
     data = json.load(file)
 
@@ -19,9 +21,9 @@ requiredMatchesPower          = data.get("requiredMatchesPower") if data.get("re
 requiredMatchesEfficiency     = data.get("requiredMatchesEfficiency") if data.get("requiredMatchesEfficiency")         else 40
 requiredMatchesComboCount     = data.get("requiredMatchesComboCount") if data.get("requiredMatchesComboCount")         else 40
 timeformat                    = data.get("timeformat") if data.get("timeformat")                                       else r"%Y-%m-%dT%H:%M:%S"
-BASE_USER_URL                 = data.get("BASE_USER_URL") if data.get("BASE_USER_URL")                                 else None
-BASE_ROUNDS_URL               = data.get("BASE_ROUNDS_URL") if data.get("BASE_ROUNDS_URL")                             else None
-LIVEINFO_URL                  = data.get("LIVEINFO_URL") if data.get("LIVEINFO_URL")                                   else None
+BASE_USER_URL                 = os.getenv("BASE_USER_URL")
+BASE_ROUNDS_URL               = os.getenv("BASE_ROUNDS_URL")
+LIVEINFO_URL                  = os.getenv("LIVEINFO_URL")
 deleteUserData                = data.get("deleteUserData") if data.get("deleteUserData")                               else True
 commandCooldown               = data.get("commandCooldown") if data.get("commandCooldown")                             else 120
 roundsUserdataDirectory       = data.get("roundsUserdataDirectory").replace('/', os.sep) if data.get("roundsUserdataDirectory") else os.path.join("files", "userdata", "rounds") + os.sep
