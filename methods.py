@@ -6,6 +6,7 @@ from logger import log
 from settings import *
 from databaseexport import updateDatabase
 from os.path import isfile, join
+from pathlib import Path
 
 def getPage(page, data, pageSize = embedPageSize, isTime = False):
     
@@ -55,7 +56,7 @@ async def logInteraction(interaction:discord.Interaction):
 
 async def checks(interaction: discord.Interaction):
     await logInteraction(interaction)
-    with open(join('files', 'settings.json'), "r") as file:
+    with open(join('files', 'check_times.json'), "r") as file:
         data = json.load(file)
     if data.get("locked"):
         await interaction.response.send_message(f"Bot a bit busy! Try again in a minute.", ephemeral=True)
@@ -76,7 +77,7 @@ def thousandsSeparator(n: int) -> str:
         return f'{n:,}'
 
 async def check_netscores(db):
-    with open(join('files', 'settings.json'), "r") as file:
+    with open(join('files', 'check_times.json'), "r") as file:
         data = json.load(file)
     now = time()
     diff = now - data.get("NetscoreTime")
@@ -86,7 +87,7 @@ async def check_netscores(db):
     
     data["NetscoreTime"] = int(now)
     data["locked"] = True
-    with open(join('files', 'settings.json'), "w") as file:
+    with open(join('files', 'check_times.json'), "w") as file:
         json.dump(data,file)
 
     # try:
@@ -96,11 +97,11 @@ async def check_netscores(db):
         # log("add_recent_profile_data failed!", e, "files/log_errors.txt")
         
     data["locked"] = False
-    with open(join('files', 'settings.json'), "w") as file:
+    with open(join('files', 'check_times.json'), "w") as file:
         json.dump(data,file)
 
 async def check_rankings(db):
-    with open(join('files', 'settings.json'), "r") as file:
+    with open(join('files', 'check_times.json'), "r") as file:
         data = json.load(file)
     now = time()
     diff = now - data.get("RefreshRankingsTime")
@@ -110,12 +111,12 @@ async def check_rankings(db):
     
     data["RefreshRankingsTime"] = int(now)
     data["locked"] = True
-    with open(join('files', 'settings.json'), "w") as file:
+    with open(join('files', 'check_times.json'), "w") as file:
         json.dump(data,file)
 
     await database.refresh_rankings(db,300)
     data["locked"] = False
-    with open(join('files', 'settings.json'), "w") as file:
+    with open(join('files', 'check_times.json'), "w") as file:
         json.dump(data,file)
 
 async def update_fulldb(path_to_db = join('files', 'fullCultris.db')):
@@ -124,7 +125,7 @@ async def update_fulldb(path_to_db = join('files', 'fullCultris.db')):
         return
 
     while True:
-        with open(join('files', 'settings.json'), "r") as file:
+        with open(join('files', 'check_times.json'), "r") as file:
             data = json.load(file)
         
         now = time()
@@ -135,14 +136,14 @@ async def update_fulldb(path_to_db = join('files', 'fullCultris.db')):
         
         data["UpdateDBTime"] = int(now)
         data["locked"] = True
-        with open(join('files', 'settings.json'), "w") as file:
+        with open(join('files', 'check_times.json'), "w") as file:
             json.dump(data,file)
 
         updateDatabase(join('files', 'cultris.db'), path_to_db)
         log("Full DB updated")
         
         data["locked"] = False
-        with open(join('files', 'settings.json'), "w") as file:
+        with open(join('files', 'check_times.json'), "w") as file:
             json.dump(data,file)
 
         await asyncio.sleep(600)
@@ -165,6 +166,45 @@ def create_achievements_file(url):
                 #  data.get(element).get("count"),                 
                  ))
 
+def create_check_times_file():
+    """
+    Function executed at bot startup, checks if check_times.json exists and unlocks bot
+    """
+    file = Path(join("files","check_times.json"))
+
+    if file.exists():
+        #If bot is unlocked -> return
+        with open(join("files","check_times.json"), 'r') as f:
+            data: dict = json.load(f)
+            if data and not data.get('locked'): return
+        
+        #If bot is locked -> unlock it, return
+        data['locked'] = False
+        with open(join("files","check_times.json"), 'w') as f:
+            json.dump(data, f)
+
+    #File does not exist, create it and place default values
+    data = {
+        "locked": False,
+        "NetscoreTime": 0,
+        "RefreshRankingsTime": 0,
+        "UpdateDBTime": 0
+    }
+
+    #Check if this data is in settings.json (this could happen for legacy reasons)
+    with open(join("files","settings.json"), 'r') as f:
+        settings = json.load(f)
+    
+    for key in data.keys():
+        if settings.get(key): 
+            data[key] = settings[key]
+
+    #Finally, create file with this data
+    with open(join("files","check_times.json"), 'w') as f:
+        json.dump(data, f)
+
+
 
 if __name__ == '__main__':
+    create_check_times_file()
     pass

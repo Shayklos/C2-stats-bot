@@ -38,6 +38,10 @@ async def gather_data():
 
         await asyncio.sleep(gatherDataRefreshRate) #by default 30s
 
+
+
+
+
 async def main():
     gatherData = asyncio.create_task(gather_data())
     c2Bot = asyncio.create_task(bot.cultrisBot.start(bot.TOKEN))
@@ -46,6 +50,18 @@ async def main():
     await gatherData   # Data addition loop
     await c2Bot        # Discord bot loop
     # await updateFullDB # Full DB data gathering
+
+
+def init():
+    """
+    Setups directories needed for the bot to work
+    """
+
+    # Create files/logs folder. Move logs to this folder if they exist (from old versions of the bot)
+    move_log_files_to_logs_folder()
+
+    # Create check_times file if it doesn't exist
+    create_check_times_file()
 
 
 
