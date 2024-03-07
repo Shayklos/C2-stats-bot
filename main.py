@@ -67,6 +67,7 @@ def init():
 
 if __name__ == "__main__": 
     try:
+        init()
         asyncio.run(main())
     except Exception as e:
         log(traceback.format_exc(), file=join('files', 'logs', 'error.txt'))
