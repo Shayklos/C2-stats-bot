@@ -193,11 +193,16 @@ def create_check_times_file():
 
     #Check if this data is in settings.json (this could happen for legacy reasons)
     with open(join("files","settings.json"), 'r') as f:
-        settings = json.load(f)
+        settings: dict = json.load(f)
     
     for key in data.keys():
         if settings.get(key): 
             data[key] = settings[key]
+            settings.pop(key)
+
+    #Remove these keys from settings as they are no longer needed
+    with open(join("files","settings.json"), 'w') as f:
+        json.dump(settings, f)
 
     #Finally, create file with this data
     with open(join("files","check_times.json"), 'w') as f:
