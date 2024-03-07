@@ -61,6 +61,8 @@ async def checks(interaction: discord.Interaction):
     if data.get("locked"):
         await interaction.response.send_message(f"Bot a bit busy! Try again in a minute.", ephemeral=True)
         return False
+    with open(join('files', 'settings.json'), "r") as file:
+        data = json.load(file)
     if interaction.user.name in data.get('approved_users').keys():
         return data.get('approved_users').get(interaction.user.name)
     if developerMode or interaction.user.name in admins:
