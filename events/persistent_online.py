@@ -4,7 +4,7 @@ from datetime import datetime
 import sys
 from os.path import join
 sys.path.append('../c2-stats-bot')
-from settings import admins, COLOR_Default
+from settings import admins, COLOR_Default, online_message_frequency
 from database import getPlayersOnline
 import json
 
@@ -18,7 +18,7 @@ class Game_Info(commands.Cog):
     def cog_unload(self):
         self.editor.cancel()
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=online_message_frequency)
     async def editor(self):
         players = await getPlayersOnline()
 

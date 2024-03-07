@@ -27,6 +27,7 @@ LIVEINFO_URL                  = os.getenv("LIVEINFO_URL")
 deleteUserData                = data.get("deleteUserData") if data.get("deleteUserData")                               else True
 commandCooldown               = data.get("commandCooldown") if data.get("commandCooldown")                             else 120
 roundsUserdataDirectory       = data.get("roundsUserdataDirectory").replace('/', os.sep) if data.get("roundsUserdataDirectory") else os.path.join("files", "userdata", "rounds") + os.sep
+online_message_frequency      = data.get("online_message_frequency") if data.get("online_message_frequency")           else 30
 
 if powerTableData := data.get("powerTable"):
     powerTableRange = data.get("powerTableRange")

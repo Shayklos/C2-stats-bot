@@ -16,6 +16,7 @@
     "dbDaysLimit": 30,
     "embedPageSize": 20,
     "botTimeout": 120,
+    "online_message_frequency": 30,
     "requiredMatchesCombos": 15,
     "requiredMatchesSPM": 40,
     "requiredMatchesBPM": 40,
