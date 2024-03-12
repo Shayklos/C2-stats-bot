@@ -46,6 +46,28 @@ class DevCommands(commands.Cog):
         await ctx.message.add_reaction("👍")
 
 
+    @commands.command(aliases = ['re', 'rle'])
+    @commands.check(isAdmin)
+    async def reload_event(self, ctx: commands.Context, command: str = 'all'): 
+        """
+        Reloads all events in the commands folder without needing to restart the bot. 
+        """
+        if command == 'all':
+            for extension in ["".join(('events.', extension[:-3])) for extension in os.listdir('events') if extension[-3:] == '.py']:
+                try:
+                    await self.bot.reload_extension(extension)
+                except:
+                    await self.bot.load_extension(extension)
+
+        else:
+            try:
+                await self.bot.reload_extension('events.' + command)
+            except:
+                await self.bot.load_extension('events.' + command)
+
+
+        await ctx.message.add_reaction("👍")
+
 
     @commands.command()
     @commands.check(isAdmin)
