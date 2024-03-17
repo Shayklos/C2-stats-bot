@@ -3,6 +3,8 @@ from discord import app_commands
 from discord.ext import commands
 import sys, os
 from os import sep
+from os.path import join
+import json
 sys.path.append(f'..{sep}c2-stats-bot')
 from settings import admins
 from bot import GUILD_ID
@@ -120,6 +122,42 @@ class DevCommands(commands.Cog):
         await self.bot.tree.sync(guild=None)
 
         await ctx.message.add_reaction("👍")
+
+
+    @commands.group()
+    @commands.check(isAdmin)
+    async def admin(self, ctx: commands.Context): 
+        """
+        Syncs bot commands
+        """
+        if ctx.invoked_subcommand == None:
+            await ctx.message.reply(content="/admin add | remove | list")
+
+    @admin.command(name='add')
+    async def add_admin(self, ctx: commands.Context, admin_name):
+        if admin_name in admins:
+            return
+        
+        with open(join("files", "settings.json")) as f: settings = json.load(f)
+        settings['admins'].append(admin_name)
+        admins.append(admin_name)
+
+        with open(join("files", "settings.json"), 'w') as f: json.dump(settings, f)
+        
+    @admin.command(name='delete', aliases = ['remove'])
+    async def delete_admin(self, ctx: commands.Context, admin_name):
+        if admin_name not in admins or len(admins) == 1 or admin_name == 'shayklos':
+            return
+        
+        with open(join("files", "settings.json")) as f: settings = json.load(f)
+        settings['admins'].remove(admin_name)
+        admins.remove(admin_name)
+
+        with open(join("files", "settings.json"), 'w') as f: json.dump(settings, f)
+
+    @admin.command(name='list', aliases=['ls'])
+    async def admin_list(self, ctx):
+        await ctx.send(content = " ".join([admin for admin in admins]))    
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(DevCommands(bot))
