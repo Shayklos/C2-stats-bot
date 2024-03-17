@@ -73,6 +73,7 @@ class FAQ_Commands(commands.Cog):
             else:
                 await ctx.reply(content = FAQ_Commands.available_faqs(faq['aliases']))
 
+    @commands.check(lambda ctx : ctx.author.name in admins)
     @faq.group()
     async def add(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
@@ -80,6 +81,9 @@ class FAQ_Commands(commands.Cog):
 
     @add.command(name="question")
     async def add_question(self, ctx: commands.Context, question: str, *, answer: str):
+        if question in ['add', 'remove', 'delete']:
+            await ctx.reply(content='This would cause conflicts.')
+            return
         with open(join("files", "faq.json")) as f: faq = json.load(f)
         faq['faqs'][question] = answer
         faq['aliases'][question] = []
@@ -100,10 +104,11 @@ class FAQ_Commands(commands.Cog):
                 await ctx.reply(content = "No question with that name.")
         with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
+    @commands.check(lambda ctx : ctx.author.name in admins)
     @faq.group(aliases = ["remove"])
     async def delete(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
-            await ctx.reply(content="/faq delete question [question] [answer]\n /faq delete alias [question] [alias_to_remove] [alias_to_remove] ... [alias_to_remove]")
+            await ctx.reply(content="/faq delete question [question]\n /faq delete alias [question] [alias_to_remove] [alias_to_remove] ... [alias_to_remove]")
         
     @delete.command(name="question")
     async def delete_question(self, ctx: commands.Context, question: str):
@@ -130,6 +135,7 @@ class FAQ_Commands(commands.Cog):
                 await ctx.reply(content = "No question with that name.")
         with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
+    @commands.check(lambda ctx : ctx.author.name in admins)
     @commands.command()
     async def export_faq(self, ctx: commands.Context):
         await ctx.send(file=discord.File(join("files", "faq.json")))
