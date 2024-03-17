@@ -95,6 +95,11 @@ class Game_Info(commands.Cog):
     async def change_online_message_update_frequency(self, ctx: commands.Context, seconds: int):
         self.editor.change_interval(seconds = seconds)
 
+    @commands.check(lambda ctx : ctx.author.name in admins)
+    @commands.command()
+    async def export_online_messages(self, ctx: commands.Context):
+        await ctx.send(file=discord.File(join("files", "online_messages.json")))
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Game_Info(bot))
     print(f"Loaded Game_Info event.")

@@ -130,6 +130,10 @@ class FAQ_Commands(commands.Cog):
                 await ctx.reply(content = "No question with that name.")
         with open(join("files", "faq.json"), 'w') as f: json.dump(faq, f)
 
+    @commands.command()
+    async def export_faq(self, ctx: commands.Context):
+        await ctx.send(file=discord.File(join("files", "faq.json")))
+        
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(FAQ_Commands(bot))
