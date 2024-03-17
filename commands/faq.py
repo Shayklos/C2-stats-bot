@@ -55,7 +55,7 @@ class FAQ_Commands(commands.Cog):
         return s
 
     @commands.group(invoke_without_command = True)
-    async def faq(self, ctx: commands.Context, question: str):
+    async def faq(self, ctx: commands.Context, question: str = None):
         with open(join("files", "faq.json")) as f: faq = json.load(f)
         
         # Check if the question is directly in faqs
