@@ -693,14 +693,15 @@ async def getCombos(db: aiosqlite.Connection, days = 7, requiredMatches = requir
 
 
 
-
-
-async def getPlayersOnline():
-    #This function loops waaaaaaay to many times over liveinfo.get("players"). Performance could be improved
-
+async def getLiveinfoData():
     async with aiohttp.ClientSession() as session:
         async with session.get(LIVEINFO_URL) as response:
-            liveinfo = await response.json()
+            return await response.json()
+
+
+async def getPlayersOnline(liveinfo):
+    #This function loops waaaaaaay to many times over liveinfo.get("players"). Performance could be improved
+    liveinfo = liveinfo if liveinfo else await getLiveinfoData()
 
     # The 'players' field in liveinfo.get("rooms") counts the number of *active* players in a room.
     # So I check in which room each player is instead so this could track rooms with afk players as well.

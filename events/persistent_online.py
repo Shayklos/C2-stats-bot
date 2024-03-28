@@ -6,7 +6,8 @@ from os.path import join
 
 sys.path.append("../c2-stats-bot")
 from settings import admins, COLOR_Default, online_message_frequency
-from database import getPlayersOnline
+from database import getPlayersOnline, getLiveinfoData
+from logger import log
 import json
 
 
@@ -15,6 +16,8 @@ class Game_Info(commands.Cog):
         super().__init__()
         self.bot: commands.Bot = bot
         self.messages = []
+        self.channels = []
+        self.edit_channel_name = True
         self.editor.start()
 
     def cog_unload(self):
@@ -22,17 +25,31 @@ class Game_Info(commands.Cog):
 
     @tasks.loop(seconds=online_message_frequency)
     async def editor(self):
-        players = await getPlayersOnline()
+        liveinfo = await getLiveinfoData()
+        if not liveinfo:
+            log(
+                "Liveinfo endpoint (and likely all endpoints) seems to be down.",
+                "error.txt",
+            )
+            return
+        players = await getPlayersOnline(liveinfo)
 
         embed = discord.Embed(
             color=COLOR_Default, description=players, title="Players online"
         )
 
         last_updated = f"<t:{int(datetime.now().timestamp())}:R>"
-
         for message in self.messages:
             message: discord.Message
             await message.edit(content=f"Last updated: {last_updated}", embed=embed)
+        if not self.edit_channel_name:
+            return
+        try:
+            for channel in self.channels:
+                channel: discord.TextChannel
+                await channel.edit(name=f"online ({len(liveinfo.get('players'))})")
+        except discord.errors.Forbidden:
+            log(f"Missing `Manage Channels` permisions in channel {channel.name} ({channel.id}) of server {channel.guild.id}.")
 
     @editor.before_loop
     async def before_editor(self):
@@ -49,6 +66,7 @@ class Game_Info(commands.Cog):
             ) or await self.bot.fetch_channel(message_data.get("channel_id"))
             message = await channel.fetch_message(message_data.get("message_id"))
             self.messages.append(message)
+            self.channels.append(channel)
 
         await self.bot.wait_until_ready()
 
@@ -100,6 +118,11 @@ class Game_Info(commands.Cog):
     @commands.command()
     async def export_online_messages(self, ctx: commands.Context):
         await ctx.send(file=discord.File(join("files", "online_messages.json")))
+
+    @commands.check(lambda ctx: ctx.author.name in admins)
+    @commands.command()
+    async def toggleChannelNameEdition(self, ctx: commands.Context):
+        self.edit_channel_name = not self.edit_channel_name
 
 
 async def setup(bot: commands.Bot):
