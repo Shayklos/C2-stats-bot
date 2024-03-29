@@ -1,3 +1,4 @@
+import aiosqlite
 import discord
 from discord.ext import commands
 import sys
@@ -170,6 +171,30 @@ class DevCommands(commands.Cog):
     async def admin_list(self, ctx):
         await ctx.send(content=" ".join([admin for admin in admins]))
 
+    @commands.group()
+    @commands.check(isAdmin)
+    async def sql(self, ctx: commands.Context):
+        """
+        Runs a SQL script. Please know what you're doing...
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.message.reply(content="/sql read | write")
+
+    @sql.command()
+    async def read(self, ctx: commands.Context, *, script: str):
+        self.bot.db.row_factory = None
+        sql = await self.bot.db.execute(script)
+        result = await sql.fetchall()
+        await ctx.reply(content = str(result))
+        self.bot.db.row_factory = aiosqlite.Row
+        await ctx.message.add_reaction("👍")
+
+
+    @sql.command()
+    async def write(self, ctx: commands.Context, *, script: str):
+        await self.bot.db.execute(script)
+        await self.bot.db.commit()
+        await ctx.message.add_reaction("👍")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(DevCommands(bot))
