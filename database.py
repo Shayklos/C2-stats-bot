@@ -699,7 +699,7 @@ async def getLiveinfoData():
             return await response.json()
 
 
-async def getPlayersOnline(liveinfo):
+async def getPlayersOnline(liveinfo = None):
     #This function loops waaaaaaay to many times over liveinfo.get("players"). Performance could be improved
     liveinfo = liveinfo if liveinfo else await getLiveinfoData()
 
