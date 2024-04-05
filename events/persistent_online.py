@@ -15,24 +15,25 @@ class Game_Info(commands.Cog):
     def __init__(self, bot: commands.Bot):
         super().__init__()
         self.bot: commands.Bot = bot
+        self.liveinfo = None
         self.messages = []
         self.channels = []
         self.edit_channel_name = True
-        self.editor.start()
+        self.online_message_editor.start()
 
     def cog_unload(self):
-        self.editor.cancel()
+        self.online_message_editor.cancel()
 
     @tasks.loop(seconds=online_message_frequency)
-    async def editor(self):
-        liveinfo = await getLiveinfoData()
-        if not liveinfo:
+    async def online_message_editor(self):
+        self.liveinfo = await getLiveinfoData()
+        if not self.liveinfo:
             log(
                 "Liveinfo endpoint (and likely all endpoints) seems to be down.",
                 "error.txt",
             )
             return
-        players = await getPlayersOnline(liveinfo)
+        players = await getPlayersOnline(self.liveinfo)
 
         embed = discord.Embed(
             color=COLOR_Default, description=players, title="Players online"
@@ -42,16 +43,21 @@ class Game_Info(commands.Cog):
         for message in self.messages:
             message: discord.Message
             await message.edit(content=f"Last updated: {last_updated}", embed=embed)
-        if not self.edit_channel_name:
+
+    @tasks.loop(seconds=310) # Hardcoded, there's a ratelimit we're approaching like this
+    async def channel_editor(self):
+        if not self.edit_channel_name or not self.liveinfo:
             return
+
         try:
             for channel in self.channels:
                 channel: discord.TextChannel
-                await channel.edit(name=f"online ({len(liveinfo.get('players'))})")
+                await channel.edit(name=f"online ({len(self.liveinfo.get('players'))})")
         except discord.errors.Forbidden:
             log(f"Missing `Manage Channels` permisions in channel {channel.name} ({channel.id}) of server {channel.guild.id}.")
 
-    @editor.before_loop
+
+    @online_message_editor.before_loop
     async def before_editor(self):
         try:
             with open(join("files", "online_messages.json"), "r") as f:
@@ -112,7 +118,7 @@ class Game_Info(commands.Cog):
     async def change_online_message_update_frequency(
         self, ctx: commands.Context, seconds: int
     ):
-        self.editor.change_interval(seconds=seconds)
+        self.online_message_editor.change_interval(seconds=seconds)
 
     @commands.check(lambda ctx: ctx.author.name in admins)
     @commands.command()
