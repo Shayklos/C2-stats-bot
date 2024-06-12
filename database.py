@@ -638,7 +638,7 @@ async def weekly_best(db: aiosqlite.Connection, days = 7, top = 5):
                 on recentRounds.userId = Users.userId 
 
             order by time desc limit ?
-                     """, (date_now-timedelta(days=30), top) )
+                     """, (date_now-timedelta(days=days), top) )
     
     top5Survivor = await res.fetchall()
 
