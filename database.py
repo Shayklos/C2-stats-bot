@@ -223,7 +223,15 @@ async def update_profile_data(db: aiosqlite.Connection, userId, add_to_netscores
             old_rank_data = (res[0], res[1]) #320.0, 8
             old_name = res[2]
         except:
-            raise Exception(f"Crash here means there is a hole in the API. Manually add a row into Users table with userId = {userId} and name = ''")
+            # raise Exception(f"Crash here means there is a hole in the API. Manually add a row into Users table with userId = {userId} and name = ''")
+            res = await db.execute("select max(userId) from Users")
+            result = await res.fetchone()
+            id_to_add = result[0] + 1
+            await db.execute(f"INSERT INTO Users (userId, name) VALUES ({id_to_add}, '')")
+            await update_userlist(db)
+            await update_profile_data(db, userId, add_to_netscores, commit)
+            return
+
         stats = data.get("stats")
         if stats.get("name") != old_name:
             log(f"ID: {userId}: {old_name} → {stats.get('name')}", join('files', 'logs', 'namechanges.txt'))
