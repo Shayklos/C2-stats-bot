@@ -629,7 +629,20 @@ async def weekly_best(db: aiosqlite.Connection, days = 7, top = 5):
     
     top5Cheese = await res.fetchall()
 
-    return (top5SPM, top5Cheese)
+    res = await db.execute("""
+        with recentRounds as 
+            (select Matches.roundId, linesSent, playDuration, userId, place, roomsize from Rounds join Matches on Rounds.roundId = Matches.roundId where ruleset = 2 and start > ?)
+  
+        select name, playDuration as time, place, roomsize
+            from recentRounds join Users 
+                on recentRounds.userId = Users.userId 
+
+            order by time desc limit ?
+                     """, (date_now-timedelta(days=30), top) )
+    
+    top5Survivor = await res.fetchall()
+
+    return (top5SPM, top5Cheese, top5Survivor)
 
 
 async def getNetscore(db: aiosqlite.Connection, userId = None, username = None, days = 7):
