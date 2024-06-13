@@ -255,6 +255,10 @@ class Leaderboard(commands.Cog):
         if not correct:
             return
 
+        if page == 0:
+            await interaction.response.send_message("I mean on the one hand I appreciate people looking for bugs but on the other hand... it's page 0, what did you expect?", ephemeral=True)
+            return
+
         view = LeaderboardView(self.bot, interaction.user, stat, days, page)
 
         #Contents of message
