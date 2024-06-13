@@ -31,19 +31,21 @@ class FindUserModal(discord.ui.Modal):
                 break
             counter += 1
         else:
-            self.view.modal_page = None
-            await interaction.response.edit_message(content=f"No user found with name {self.name.value}." if ratio == 100 else f"No user found with name \'{self.name.value}\'. I think you meant \'{username}\', but that player isn't in the leaderboard either."
+            await interaction.response.edit_message(content=f"No user found with name {self.name.value} in the leaderboard." if ratio == 100 else f"No user found with name \'{self.name.value}\'. I think you meant \'{username}\', but that player isn't in the leaderboard either."
             )
             return
         
-        self.view.modal_page = ceil(counter/database.embedPageSize)
+        self.view.page = ceil(counter/database.embedPageSize)
         
-        description, title = await self.view.getData(self.view.modal_page, self.view._stat, self.view.days)
+        description, title = await self.view.getData(self.view.page, self.view._stat, self.view.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.view.page}")
+
         await interaction.response.edit_message(content=None if ratio == 100 else f"No user found with name \'{self.name.value}\'. Did you mean \'{username}\'?",
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self.view
             )
         
@@ -190,11 +192,14 @@ So something like
         self.enable_buttons(["Day up", "Week up"])
 
         description, title = await self.getData(self.page, self._stat, self.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.page}")
+
         await interaction.response.edit_message(
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self
             )
 
@@ -208,11 +213,14 @@ So something like
         self.enable_buttons(["Day up", "Week up"])
 
         description, title = await self.getData(self.page, self._stat, self.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.page}")
+
         await interaction.response.edit_message(
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self
             )
 
@@ -221,11 +229,14 @@ So something like
         self.logButton(interaction, button)
         self.page = -1 if self.page == 1 else self.page - 1
         description, title = await self.getData(self.page, self._stat, self.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.page}")
+
         await interaction.response.edit_message(
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self
             )
 
@@ -234,11 +245,14 @@ So something like
         self.logButton(interaction, button)
         self.page = 1 if self.page == -1 else self.page + 1
         description, title = await self.getData(self.page, self._stat, self.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.page}")
+
         await interaction.response.edit_message(
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self
             )
 
@@ -251,11 +265,14 @@ So something like
         self.enable_buttons(["Day down", "Week down"])
 
         description, title = await self.getData(self.page, self._stat, self.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.page}")
+
         await interaction.response.edit_message(
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self
             )
   
@@ -268,11 +285,14 @@ So something like
         self.enable_buttons(["Day down", "Week down"])
 
         description, title = await self.getData(self.page, self._stat, self.days)
+        embed=discord.Embed(
+            color=COLOR_Default,
+            description=description,
+            title=title)
+        embed.set_footer(text = f"Page {self.page}")
+
         await interaction.response.edit_message(
-            embed=discord.Embed(
-                    color=COLOR_Default,
-                    description=description,
-                    title=title),
+            embed=embed,
             view=self
             )
         
@@ -317,7 +337,8 @@ class Leaderboard(commands.Cog):
                 color=COLOR_Default,
                 description=description,
                 title=title)
-        
+        embed.set_footer(text = f"Page {view.page}")
+
         await interaction.followup.send(embed=embed, view=view)
         view.message = await interaction.original_response()
         
