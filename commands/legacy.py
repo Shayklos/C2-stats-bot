@@ -16,7 +16,7 @@ class LegacyStats(commands.Cog):
 
     @app_commands.command(description="Returns all-time stats of a user. If you can't find the user, maybe try with an old nickname?")
     @app_commands.describe(username='Ingame username of the player you\'re looking for. Leave empty to use your Discord display name.')
-    async def legacystats(self, interaction: discord.Interaction, username: str=None):
+    async def legacy(self, interaction: discord.Interaction, username: str=None):
         correct = await methods.checks(interaction)
         if not correct:
             return
@@ -88,4 +88,4 @@ class LegacyStats(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(LegacyStats(bot))
-    print(f"Loaded /legacystats command.")
+    print(f"Loaded /legacy command.")
