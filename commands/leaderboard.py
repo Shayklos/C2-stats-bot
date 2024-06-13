@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui.item import Item
 from typing import Any
+from math import ceil
 import sys
 from os import sep
 sys.path.append(f'..{sep}c2-stats-bot')
@@ -10,6 +11,43 @@ from logger import *
 import database, methods
 from CultrisView import CultrisView
 from settings import COLOR_Default
+
+class FindUserModal(discord.ui.Modal):
+    def __init__(self, view, *, title: str = "User finder", timeout: float | None = None) -> None:
+        super().__init__(title=title, timeout=timeout)
+        self.view: LeaderboardView = view
+
+    name = discord.ui.TextInput(
+        label='Username',
+        placeholder='Write the username to find here',
+    )
+    async def on_submit(self, interaction: discord.Interaction):
+        ratio, userId, username = await database.fuzzysearch(self.view.bot.db, self.name.value.lower())
+
+        counter = 1
+        for row in self.view.data:
+            name = row[1]
+            if name.lower() == username.lower():
+                break
+            counter += 1
+        else:
+            self.view.modal_page = None
+            await interaction.response.edit_message(content=f"No user found with name {self.name.value}." if ratio == 100 else f"No user found with name \'{self.name.value}\'. I think you meant \'{username}\', but that player isn't in the leaderboard either."
+            )
+            return
+        
+        self.view.modal_page = ceil(counter/database.embedPageSize)
+        
+        description, title = await self.view.getData(self.view.modal_page, self.view._stat, self.view.days)
+        await interaction.response.edit_message(content=None if ratio == 100 else f"No user found with name \'{self.name.value}\'. Did you mean \'{username}\'?",
+            embed=discord.Embed(
+                    color=COLOR_Default,
+                    description=description,
+                    title=title),
+            view=self.view
+            )
+        
+
 
 class LeaderboardView(CultrisView):
 
@@ -127,7 +165,7 @@ So something like
 
                 else:
                     return None, 'Did you choose a stat?'
-        
+        self.data = data
         return description, title
 
     @discord.ui.button(label="Sort by count", row = 2, style=discord.ButtonStyle.primary) 
@@ -238,7 +276,13 @@ So something like
             view=self
             )
         
-
+    @discord.ui.button(label="Find user", row = 2, style=discord.ButtonStyle.primary, emoji="🔍") 
+    async def find_user(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction, button)
+        modal = FindUserModal(self)
+        await interaction.response.send_modal(modal)
+       
+        
 class Leaderboard(commands.Cog):
     def __init__(self, bot: commands.Bot):
         super().__init__()
