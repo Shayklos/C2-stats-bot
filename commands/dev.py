@@ -135,9 +135,6 @@ class DevCommands(commands.Cog):
     @commands.group()
     @commands.check(isAdmin)
     async def admin(self, ctx: commands.Context):
-        """
-        Syncs bot commands
-        """
         if ctx.invoked_subcommand is None:
             await ctx.message.reply(content="/admin add | remove | list")
 
@@ -189,12 +186,25 @@ class DevCommands(commands.Cog):
         self.bot.db.row_factory = aiosqlite.Row
         await ctx.message.add_reaction("👍")
 
-
     @sql.command()
     async def write(self, ctx: commands.Context, *, script: str):
         await self.bot.db.execute(script)
         await self.bot.db.commit()
         await ctx.message.add_reaction("👍")
+
+    @commands.command()
+    @commands.check(isAdmin)
+    async def get_log(self, ctx: commands.Context, log_name: str):
+        max_filesize_discord = 1024*1024 * 24 # You can only send files smaller than 25 MB. We'll settle for 24
+
+        with open(join("files", "logs", log_name + ".txt"), 'rb') as f:
+            f.seek(0, 2) # Go to the end of file
+            if f.tell() > max_filesize_discord:
+                f.seek(-max_filesize_discord, 2) # Only send the last part of the log
+            else:
+                f.seek(0) # Go to the start; send the whole file
+
+            await ctx.send(file=discord.File(f))
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(DevCommands(bot))
