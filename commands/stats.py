@@ -137,7 +137,7 @@ class StatsView(CultrisView):
             bpms = ""
             for time, bpm in cheese:
                 places += f"{place}\n"
-                times  += f"{time}\n"
+                times  += f"{time:.2f}\n"
                 bpms   += f"{bpm}\n"
                 place  += 1
            
@@ -147,7 +147,7 @@ class StatsView(CultrisView):
         else: #Phone view; uses only embed description since embed fields are not inlined in phone, worse readability on desktop
             description = ""
             for time, bpm in cheese:
-                description += f"1. **{time}** at {bpm} BPM\n" #Markdown takes care of the counting
+                description += f"1. **{time:.2f}** at {bpm} BPM\n" #Markdown takes care of the counting
             
             embed.description = description
 

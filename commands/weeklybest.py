@@ -19,7 +19,7 @@ def topSPM_str(top) -> str:
 def topCheese_str(top) -> str:
     string = ""
     for row in top:
-        string += f"**{row[0]}** - {round(row[1], 2)}\n"
+        string += f"**{row[0]}** - {round(row[1], 2):.2f}\n"
     return string[:-1]
 
 
