@@ -1266,6 +1266,20 @@ async def userComboSpread(db: aiosqlite.Connection, userId, days=7, minutes = 0)
     return combos
 
 
+async def userSurvivorTimes(db: aiosqlite.Connection, userId, days=7, minutes = 0, limit = 20):
+    date_now = datetime.now(tz = timezone('UTC'))
+    cur = await db.execute("""
+    select playDuration, place, roomsize 
+    from Rounds join Matches on Rounds.roundId = Matches.roundId 
+    where ruleset = 2 and userId = ? and start > ?
+    order by playDuration desc
+    limit ?
+        """,
+    (userId, date_now-timedelta(days=days, minutes = minutes), limit))
+    survivor = await cur.fetchall()
+
+    return survivor
+
 async def refresh_rankings(db: aiosqlite.Connection, refresh_limit: int):
     """
     Finds all the players in the top [refresh_limit] that haven't played in the last week and updates those.

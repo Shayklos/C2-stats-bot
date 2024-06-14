@@ -188,6 +188,41 @@ class StatsView(CultrisView):
         return embed
 
 
+    async def createSurvivorEmbed(self, userId, days, minutes):
+        """Returns Discord embed of Cheese Stats (Times and BPM) of top 20 times"""
+
+        survivor = await database.userSurvivorTimes(self.bot.db, userId, days, minutes)
+        player = self.player
+        embed = discord.Embed(
+                title=f"Survivor times of {player['name']} ({days}d{(' ' + str(minutes) + 'm')*(minutes>0)})",
+                color=0x777777,
+            )
+
+        if self.desktop: #Desktop view; uses embed fields to align values
+            place = 1
+            places = ""
+            times = ""
+            for time, placement, roomsize in survivor:
+                places += f"{place}\n"
+                plus = '+' if placement == 1 and roomsize > 1 else ''
+                times  += f"{int(time//60)}:{str(round(time%60, 1)).zfill(4)}{plus}\n"
+                place  += 1
+           
+            embed.add_field(name='Rank', value=places)
+            embed.add_field(name='Time', value=times)
+        else: #Phone view; uses only embed description since embed fields are not inlined in phone, worse readability on desktop
+            description = ""
+            for time, placement, roomsize in survivor:
+                plus = '+' if placement == 1 and roomsize > 1 else ''
+                description += f"1. **{int(time//60)}:{round(time%60, 1)}**{plus}\n" #Markdown takes care of the counting
+            
+            embed.description = description
+
+        embed.set_thumbnail(url=f"https://www.gravatar.com/avatar/{player['gravatarHash']}?d=https://i.imgur.com/Gms07El.png")
+        return embed
+
+
+
     async def editEmbed(self, interaction: discord.Interaction):
         match self.state:
             case 0: #Stats
@@ -196,6 +231,8 @@ class StatsView(CultrisView):
                 embed = await self.createCheeseEmbed(self.userId, self.days, self.minutes)
             case 2: #Combo spread
                 embed = await self.createComboEmbed(self.userId, self.days, self.minutes)
+            case 3: #Survivor times
+                embed = await self.createSurvivorEmbed(self.userId, self.days, self.minutes)
 
         await interaction.response.edit_message(embed=embed, view=self) 
 
@@ -256,7 +293,7 @@ class StatsView(CultrisView):
         self.logButton(interaction,button)
         self.state = 0
         button.disabled = True
-        self.enable_buttons(["Cheese times", "Combo spread"])
+        self.enable_buttons(["Cheese times", "Combo spread", "Survivor times"])
 
         await self.editEmbed(interaction)
 
@@ -266,7 +303,7 @@ class StatsView(CultrisView):
         self.logButton(interaction,button)
         self.state = 1
         button.disabled = True
-        self.enable_buttons(["Round stats", "Combo spread"])
+        self.enable_buttons(["Round stats", "Combo spread", "Survivor times"])
 
         await self.editEmbed(interaction)
         
@@ -276,9 +313,19 @@ class StatsView(CultrisView):
         self.logButton(interaction,button)
         self.state = 2
         button.disabled = True
-        self.enable_buttons(["Round stats", "Cheese times"])
+        self.enable_buttons(["Round stats", "Cheese times", "Survivor times"])
 
         await self.editEmbed(interaction)
+
+    @discord.ui.button(label="Survivor times", row=1, style = discord.ButtonStyle.primary, emoji = "⌛") 
+    async def survivor(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.logButton(interaction,button)
+        self.state = 3
+        button.disabled = True
+        self.enable_buttons(["Round stats", "Cheese times", "Combo spread"])
+
+        await self.editEmbed(interaction)
+
 
     @discord.ui.button(label="Phone view", row=2, style = discord.ButtonStyle.primary, emoji = "\U0001F4BB") 
     async def phonedesktoptoggle(self, interaction: discord.Interaction, button: discord.ui.Button):
