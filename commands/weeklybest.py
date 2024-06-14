@@ -29,7 +29,7 @@ def topSurvivor_str(top) -> str:
         plus = (
             "+" if row[2] == 1 and row[3] != 1 else ""
         )  # Add a + if user won the round and he wasn't alone in the room
-        string += f"**{row[0]}** - {int(row[1]//60)}:{round(row[1]%60, 1)} {plus}\n"
+        string += f"**{row[0]}** - {int(row[1]//60)}:{str(round(row[1]%60, 1)).zfill(4)} {plus}\n"
     return string[:-1]
 
 
