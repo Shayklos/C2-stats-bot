@@ -9,7 +9,7 @@ sys.path.append(f'..{sep}c2-stats-bot')
 from logger import *
 import database, methods
 from CultrisView import CultrisView
-from settings import COLOR_Default, COLOR_Red, COLOR_Yellow, timeformat
+from settings import COLOR_Default, COLOR_Red, COLOR_Yellow, COLOR_Grey, timeformat
 
 
 """
@@ -195,7 +195,7 @@ class StatsView(CultrisView):
         player = self.player
         embed = discord.Embed(
                 title=f"Survivor times of {player['name']} ({days}d{(' ' + str(minutes) + 'm')*(minutes>0)})",
-                color=0x777777,
+                color=COLOR_Grey,
             )
 
         if self.desktop: #Desktop view; uses embed fields to align values

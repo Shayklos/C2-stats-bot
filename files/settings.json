@@ -46,5 +46,6 @@
     ],
     "COLOR_Default": "0x0B3C52",
     "COLOR_Yellow": "0xFFFF70",
-    "COLOR_Red": "0xFF0000"
+    "COLOR_Red": "0xFF0000",
+    "COLOR_Grey": "0x777777"
 }
