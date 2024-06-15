@@ -36,6 +36,8 @@ class RankingsView(CultrisView):
                 description=description,
                 title=f"Leaderboard"
             )
+        embed.set_footer(text = f"Page {page}")
+        
         return embed
 
 
@@ -71,7 +73,9 @@ class Rankings(commands.Cog):
         
         view = RankingsView(self.bot, interaction.user, page)
 
+
         embed = await view.createEmbed(page)
+        embed.set_footer(text = f"Page {page}")
         await interaction.response.send_message(embed = embed, view = view)
         view.message = await interaction.original_response()
 
