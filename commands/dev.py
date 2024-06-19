@@ -206,6 +206,15 @@ class DevCommands(commands.Cog):
 
             await ctx.send(file=discord.File(f))
 
+    @commands.command()
+    @commands.check(isAdmin)
+    async def swap(self, ctx: commands.Context, where):
+        att = ctx.message.attachments[0]
+        with open(where, 'wb') as f:
+            await att.save(f)
+                        
+        await ctx.message.add_reaction("👍")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(DevCommands(bot))
     print("Dev commands were loaded.")
