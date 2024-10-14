@@ -207,7 +207,7 @@ class DevCommands(commands.Cog):
     @commands.command()
     @commands.check(isAdmin)
     async def get_log(self, ctx: commands.Context, log_name: str):
-        max_filesize_discord = 1024*1024 * 24 # You can only send files smaller than 25 MB. We'll settle for 24
+        max_filesize_discord = round(1024*1024 * 9.8) # You can only send files smaller than 10 MB. We'll settle for 9.8
 
         with open(join("files", "logs", log_name + ".txt"), 'rb') as f:
             f.seek(0, 2) # Go to the end of file
