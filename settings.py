@@ -41,3 +41,7 @@ COLOR_Default = int(data.get("COLOR_Default"), 16) if data.get("COLOR_Default") 
 COLOR_Yellow  = int(data.get("COLOR_Yellow"), 16) if data.get("COLOR_Yellow")   else 0xFFFF70
 COLOR_Red     = int(data.get("COLOR_Red"), 16) if data.get("COLOR_Red")         else 0xFF0000
 COLOR_Grey    = int(data.get("COLOR_Grey"), 16) if data.get("COLOR_Grey")       else 0x777777
+
+botzilla_name           = data.get("botzilla_name")           if data.get("botzilla_name")           else "botzilla"
+botzilla_check_for_name = data.get("botzilla_check_for_name") if data.get("botzilla_check_for_name") else True
+botzilla_check_for_java = data.get("botzilla_check_for_java") if data.get("botzilla_check_for_java") else False

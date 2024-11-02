@@ -47,5 +47,8 @@
     "COLOR_Default": "0x0B3C52",
     "COLOR_Yellow": "0xFFFF70",
     "COLOR_Red": "0xFF0000",
-    "COLOR_Grey": "0x777777"
+    "COLOR_Grey": "0x777777",
+    "botzilla_name": "botzilla",
+    "botzilla_check_for_name": true,
+    "botzilla_check_for_java": false
 }

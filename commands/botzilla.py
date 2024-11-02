@@ -6,6 +6,7 @@ import os
 import subprocess
 sys.path.append(f'..{os.sep}c2-stats-bot')
 import database, methods
+from settings import botzilla_check_for_java, botzilla_check_for_name, botzilla_name
 
 class Botzilla(commands.Cog):
     run_message = r"""Botzilla is being summoned!
@@ -67,17 +68,18 @@ class Botzilla(commands.Cog):
         # 2) You could check if there's a java process running. Of course, this assumes that the environment doesn't
         #    have any other java processes. Relatively safe if the environment is well isolated. 
         # 3) Finally, you could check for a window titled 'Cultris II'. This is arguably the best way to check whether
-        #    or not botzilla is already on. However, it requires dependencies to non-builtin libraries.  
+        #    or not botzilla is already on. However, this requires dependencies to non-builtin libraries.  
 
         # Check if botzilla is online
-        liveinfo: dict = await database.getLiveinfoData()
-        for player in liveinfo.get('players'):
-            if player.get('name') == 'botzilla':
-                await interaction.response.send_message("Botzilla is already running.", ephemeral=True)
-                return 
+        if botzilla_check_for_name:
+            liveinfo: dict = await database.getLiveinfoData()
+            for player in liveinfo.get('players'):
+                if player.get('name') == botzilla_name:
+                    await interaction.response.send_message("Botzilla is already running.", ephemeral=True)
+                    return 
             
         # Check if there exists a java process (Cultris II).
-        if Botzilla.is_process_running('java'):
+        if botzilla_check_for_java and Botzilla.is_process_running('java'):
             await interaction.response.send_message("Botzilla is already running.", ephemeral=True)
             return 
 
