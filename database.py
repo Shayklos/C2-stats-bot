@@ -1433,7 +1433,8 @@ async def getComboCount(db: aiosqlite.Connection, condition, absolute = False, d
                     
             where 
                 start > ? and 
-                roomsize > 1
+                roomsize > 1 and
+                ruleset = 0
                 
             group by name 
             having comboCount > 0 and total > ?
