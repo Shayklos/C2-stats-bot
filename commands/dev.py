@@ -1,14 +1,16 @@
 import aiosqlite
 import discord
 from discord.ext import commands
+from discord.ui import Button, View
 import sys
 import os
 from os import sep
 from os.path import join
 import json
+from importlib import reload
 
 sys.path.append(f"..{sep}c2-stats-bot")
-from settings import admins
+import settings as SETTINGS
 from bot import GUILD_ID
 
 
@@ -19,7 +21,7 @@ class DevCommands(commands.Cog):
 
     def isAdmin(ctx: commands.Context):
         print(f"/{ctx.command} was called by {ctx.author.name}")
-        return ctx.author.name in admins
+        return ctx.author.name in SETTINGS.admins
 
     async def cog_command_error(self, ctx, error):
         if isinstance(error, commands.CheckFailure):
@@ -32,9 +34,9 @@ class DevCommands(commands.Cog):
             f"Average websocket latency: {round(self.bot.latency * 1000, 2)}ms"
         )
 
-    @commands.command(aliases=["r", "rl"])
+    @commands.command(name='reload', aliases=["r", "rl"])
     @commands.check(isAdmin)
-    async def reload(self, ctx: commands.Context, command: str = "all"):
+    async def reload_command(self, ctx: commands.Context, command: str = "all"):
         """
         Reloads all commands in the commands folder without needing to restart the bot.
         """
@@ -148,7 +150,8 @@ class DevCommands(commands.Cog):
         await self.bot.tree.sync(guild=None)
 
         await ctx.message.add_reaction("👍")
-
+#---------------------------------------------------------ADMIN
+    # Kinda useless now that /settings command exists
     @commands.group()
     @commands.check(isAdmin)
     async def admin(self, ctx: commands.Context):
@@ -157,34 +160,35 @@ class DevCommands(commands.Cog):
 
     @admin.command(name="add")
     async def add_admin(self, ctx: commands.Context, admin_name):
-        if admin_name in admins:
+        if admin_name in SETTINGS.admins:
             return
 
         with open(join("files", "settings.json")) as f:
             settings = json.load(f)
         settings["admins"].append(admin_name)
-        admins.append(admin_name)
+        SETTINGS.admins.append(admin_name)
 
         with open(join("files", "settings.json"), "w") as f:
             json.dump(settings, f)
 
     @admin.command(name="delete", aliases=["remove"])
     async def delete_admin(self, ctx: commands.Context, admin_name):
-        if admin_name not in admins or len(admins) == 1 or admin_name == "shayklos":
+        if admin_name not in SETTINGS.admins or len(settings.admins) == 1 or admin_name == "shayklos":
             return
 
         with open(join("files", "settings.json")) as f:
             settings = json.load(f)
         settings["admins"].remove(admin_name)
-        admins.remove(admin_name)
+        SETTINGS.admins.remove(admin_name)
 
         with open(join("files", "settings.json"), "w") as f:
             json.dump(settings, f)
 
     @admin.command(name="list", aliases=["ls"])
     async def admin_list(self, ctx):
-        await ctx.send(content=" ".join([admin for admin in admins]))
-
+        reload(SETTINGS)
+        await ctx.send(content=" ".join([admin for admin in SETTINGS.admins]))
+#---------------------------------------------------------SQL
     @commands.group()
     @commands.check(isAdmin)
     async def sql(self, ctx: commands.Context):
@@ -231,6 +235,93 @@ class DevCommands(commands.Cog):
             await att.save(f)
                         
         await ctx.message.add_reaction("👍")
+#---------------------------------------------------------SETTINGS
+    @commands.group(invoke_without_command = True)
+    @commands.check(isAdmin)
+    async def settings(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.reply(content="/settings see | modify | reload")
+
+    @settings.command(aliases = ['check'])
+    async def see(self, ctx: commands.Context, setting: str = None):
+        if not setting:
+            await ctx.reply(content="/settings see <setting>")
+            return 
+        
+        with open(join("files", "settings.json")) as f: data = json.load(f)
+
+        await ctx.reply(content=f"{setting}: {data.get(setting)}")
+        await ctx.message.add_reaction("👍")
+
+
+    @settings.command()
+    async def modify(self, ctx: commands.Context, setting: str = None, *, new_setting: str):
+        if not setting:
+            await ctx.reply(content="/settings modify <setting>")
+            return 
+        
+        # Verify setting exists
+        with open(join("files", "settings.json")) as f: data = json.load(f)
+        old = data.get(setting)
+        if old is None:
+            await ctx.reply(content=f"Setting {setting} not found")
+            return
+        
+        # Parse new setting
+        if isinstance(old, list):
+            if new_setting[0] != '[' or new_setting[-1] != ']':
+                await ctx.reply(content=f"Setting {setting} should be in a Python list format")
+                return
+
+            elements = new_setting[1:-1].split(', ') #notice its comma space
+            if '"' in elements[0]: #Contents are strings
+                new = [e.replace('"', '') for e in elements]
+            elif "." in elements[0]: #Contents are floats
+                new = [float(e) for e in elements]
+            else: #Contents are integers
+                new = [int(e) for e in elements]
+        
+        elif isinstance(old, int) or isinstance(old, float) or isinstance(old, str) or isinstance(old, bool):
+            new = type(old)(new_setting)
+        
+        else:
+            await ctx.reply(content="Modifying this setting not supported through commands")
+            return
+        
+        # Create a Confirm/Cancel UI
+        confirm_button = Button(label="Confirm", style=discord.ButtonStyle.green)
+        cancel_button = Button(label="Cancel", style=discord.ButtonStyle.red)
+        
+        # Define button behavior
+        async def confirm_callback(interaction: discord.Interaction):
+            # Update settings.json, reload settings module
+            data[setting] = new
+            with open(join("files", "settings.json"), 'w') as f:
+                json.dump(data, f)
+            reload(SETTINGS)
+            await interaction.response.edit_message(content="Setting updated successfully.", view=None)
+
+        async def cancel_callback(interaction: discord.Interaction):
+            await interaction.response.edit_message(content="Operation cancelled.", view=None)
+
+        confirm_button.callback = confirm_callback
+        cancel_button.callback = cancel_callback
+
+        view = View()
+        view.add_item(confirm_button)
+        view.add_item(cancel_button)
+
+        # Send the confirmation message with buttons
+        await ctx.reply(content=f"Are you sure you want to update `{setting}` \n\nfrom \n`{str(old)}` \nto \n`{str(new)}`?", view=view)
+        await ctx.message.add_reaction("👍")
+
+    @settings.command(name='reload')
+    async def reload_settings(self, ctx: commands.Context, setting: str = None):
+        reload(SETTINGS)
+        await ctx.reply(content="Settings reloaded.")
+        await ctx.message.add_reaction("👍")
+
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(DevCommands(bot))
