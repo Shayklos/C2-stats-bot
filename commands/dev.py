@@ -55,7 +55,7 @@ class DevCommands(commands.Cog):
 
     @commands.command(aliases=["re", "rle"])
     # @commands.check(isAdmin)
-    @commands.cooldown(1, 3600, commands.BucketType.default) # 1 use per hour max
+    @commands.cooldown(1, 300, commands.BucketType.default) # 1 use per 5 min max
     async def reload_event(self, ctx: commands.Context, command: str = "all"):
         """
         Reloads all events in the commands folder without needing to restart the bot.
@@ -80,12 +80,14 @@ class DevCommands(commands.Cog):
         await ctx.message.add_reaction("👍")
 
     @reload_event.error
-    async def reload_event_error(ctx: commands.Context, error):
+    async def reload_event_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.CommandOnCooldown):
             if DevCommands.isAdmin(ctx):  # Bypass the cooldown for admins
                 await ctx.reinvoke()  # Reinvoke the command without the cooldown
             else:
                 await ctx.send(f"This command is on cooldown. Try again after {round(error.retry_after, 2)} seconds.")
+            await ctx.send(f"This command is on cooldown. Try again after {round(error.retry_after, 2)} seconds.")
+        
         else:
             raise error
 
