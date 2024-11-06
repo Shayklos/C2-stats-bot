@@ -41,7 +41,11 @@ class FAQ_Commands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         super().__init__()
         self.bot = bot 
-               
+
+    async def cog_command_error(self, ctx, error):
+        if isinstance(error, commands.CheckFailure):
+            await ctx.reply("You do not have the required permissions to use this command.")
+
     @staticmethod
     def available_faqs(aliases_dict: dict, long = True) -> str:
         s = ""

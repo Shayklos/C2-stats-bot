@@ -21,6 +21,10 @@ class DevCommands(commands.Cog):
         print(f"/{ctx.command} was called by {ctx.author.name}")
         return ctx.author.name in admins
 
+    async def cog_command_error(self, ctx, error):
+        if isinstance(error, commands.CheckFailure):
+            await ctx.reply("You do not have the required permissions to use this command.")
+
     @commands.command()
     @commands.check(isAdmin)
     async def ping(self, ctx: commands.Context):
@@ -86,7 +90,6 @@ class DevCommands(commands.Cog):
                 await ctx.reinvoke()  # Reinvoke the command without the cooldown
             else:
                 await ctx.send(f"This command is on cooldown. Try again after {round(error.retry_after, 2)} seconds.")
-            await ctx.send(f"This command is on cooldown. Try again after {round(error.retry_after, 2)} seconds.")
         
         else:
             raise error
