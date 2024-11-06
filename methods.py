@@ -67,6 +67,8 @@ async def checks(interaction: discord.Interaction):
         return data.get('approved_users').get(interaction.user.name)
     if developerMode or interaction.user.name in admins:
         return True
+    if interaction.command.name in admin_commands:
+        return False
     if interaction.channel.guild is None or interaction.channel.name != 'stats':
         await interaction.response.send_message(f"Use the <#516686072537808897> channel! If you just want to use /stats, /legacystats or /challenges on yourself, you can just tell `shayklos`!", ephemeral=True)
         return False
