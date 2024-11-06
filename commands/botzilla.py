@@ -1,3 +1,7 @@
+"""
+Works only if botzilla's Cultris Patch is on root folder under the folder named 'c2-patch_ai'
+"""
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -6,7 +10,7 @@ import os
 import subprocess
 sys.path.append(f'..{os.sep}c2-stats-bot')
 import database, methods
-from settings import botzilla_check_for_java, botzilla_check_for_name, botzilla_name
+from settings import botzilla_check_for_java, botzilla_check_for_name, botzilla_name, linux_terminal
 
 class Botzilla(commands.Cog):
     run_message = r"""Botzilla is being summoned!
@@ -25,13 +29,20 @@ class Botzilla(commands.Cog):
 
     def run():
         if os.name == 'nt': # Windows
-            os.chdir('.\c2-patch_ai')
-            subprocess.call('.\Windows-64-Start-cultris2.bat')
+            os.chdir(r'.\c2-patch_ai')
+            subprocess.call(r'.\Windows-64-Start-cultris2.bat')
             os.chdir('..\\')
         else: #os.name == 'posix' (Linux)
             os.chdir('.' + os.sep + 'c2-patch_ai')
-            # subprocess.call('.' + os.sep + 'Linux-32-Start-cultris2.sh')
-            subprocess.call(['sh', '.' + os.sep + 'Linux-32-Start-cultris2.sh'])
+            match linux_terminal:
+                case 'tmux':
+                    subprocess.Popen(['tmux', 'new-session', '-d', 'sh', '.' + os.sep + 'Linux-32-Start-cultris2.sh'])
+                case 'terminator':
+                    subprocess.Popen(['terminator', '-x', 'sh', '.' + os.sep + 'Linux-32-Start-cultris2.sh'])
+                case 'gnome-terminal':
+                    subprocess.Popen(['gnome-terminal', '--', 'sh', '.' + os.sep + 'Linux-32-Start-cultris2.sh'])
+                case 'nohup':
+                    subprocess.Popen(['nohup', 'sh', '.' + os.sep + 'Linux-32-Start-cultris2.sh', '&'])
             os.chdir('..' + os.sep)
 
     def is_process_running(process_name):

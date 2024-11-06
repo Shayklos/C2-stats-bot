@@ -45,3 +45,4 @@ COLOR_Grey    = int(data.get("COLOR_Grey"), 16) if data.get("COLOR_Grey")       
 botzilla_name           = data.get("botzilla_name")           if data.get("botzilla_name")           else "botzilla"
 botzilla_check_for_name = data.get("botzilla_check_for_name") if data.get("botzilla_check_for_name") else True
 botzilla_check_for_java = data.get("botzilla_check_for_java") if data.get("botzilla_check_for_java") else False
+linux_terminal          = data.get("linux_terminal")          if data.get("linux_terminal")          else "tmux"
