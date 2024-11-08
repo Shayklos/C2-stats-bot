@@ -45,7 +45,8 @@ class UpdateAvatar(commands.Cog):
         ratio, userId, username = await fuzzysearch(self.bot.db, usernameInput.lower())
         if ratio != 100:
             await interaction.response.send_message(
-                content=f"No user found with name '{usernameInput}'. Did you mean '{username}'?"
+                content=f"No user found with name '{usernameInput}'. Did you mean '{username}'?",
+                ephemeral=True,
             )
             return
 
