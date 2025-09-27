@@ -20,6 +20,10 @@ Discord bot that displays Cultris II stats.
    BASE_ROUNDS_URL=<matches info endpoint>
    LIVEINFO_URL=<liveinfo endpoint>
 
+   #Only required for connection with Def's VPS for profile pictures
+   VPS_USERNAME=<vps username>
+   VPS_PASSWORD=<vps password>
+
    #Everything that follows is for testing and is not needed otherwise
    DISCORD_TEST_TOKEN=0
    DISCORD_GUILD=name
