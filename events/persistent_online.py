@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands, tasks
+from discord import ui
 from datetime import datetime
 import sys
 from os.path import join
@@ -33,16 +34,22 @@ class Game_Info(commands.Cog):
                 "error.txt",
             )
             return
+        
         players = await getPlayersOnline(self.liveinfo)
+        view = ui.LayoutView()
 
-        embed = discord.Embed(
-            color=COLOR_Default, description=players, title="Players online"
-        )
+        view.add_item(ui.Container(
+            ui.TextDisplay("## Players Online"),
+            ui.TextDisplay(players),
+            ui.Separator(),
+            ui.TextDisplay(f"-# Last updated: <t:{int(datetime.now().timestamp())}:R>"),
 
-        last_updated = f"<t:{int(datetime.now().timestamp())}:R>"
+            accent_color=COLOR_Default
+        ))
+
         for message in self.messages:
             message: discord.Message
-            await message.edit(content=f"Last updated: {last_updated}", embed=embed)
+            await message.edit(content=None, view=view)
 
     @tasks.loop(seconds=310) # Hardcoded, there's a ratelimit we're approaching like this
     async def channel_editor(self):
