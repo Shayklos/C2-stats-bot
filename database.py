@@ -714,15 +714,17 @@ async def getCombos(db: aiosqlite.Connection, days = 7, requiredMatches = requir
 
 
 
-async def getLiveinfoData():
+async def getLiveinfoData(db: aiosqlite.Connection = None):
     async with aiohttp.ClientSession() as session:
         async with session.get(LIVEINFO_URL) as response:
             return await response.json()
 
 
-async def getPlayersOnline(liveinfo = None):
+async def getPlayersOnline(liveinfo = None, db: aiosqlite.Connection = None):
     #This function loops waaaaaaay to many times over liveinfo.get("players"). Performance could be improved
     liveinfo = liveinfo if liveinfo else await getLiveinfoData()
+    await update_players_liveinfo(liveinfo, db)
+
 
     # The 'players' field in liveinfo.get("rooms") counts the number of *active* players in a room.
     # So I check in which room each player is instead so this could track rooms with afk players as well.
@@ -775,6 +777,24 @@ async def getPlayersOnline(liveinfo = None):
     return result
         
     
+async def update_players_liveinfo(liveinfo, db: aiosqlite.Connection):
+    if db is None:
+        return
+
+    players: dict = liveinfo.get("players")
+    if not players:
+        return
+    
+    players_real = {player.get("id") : player.get("name") for player in players if player.get("id") != -1}
+    
+    cur = await db.execute(f"SELECT userId, name FROM Users WHERE userId in {tuple(players_real.keys())}")
+    players_db = await cur.fetchall()
+    for id, name in players_db:
+        if players_real.get(id) != name:
+            await db.execute(f"UPDATE Users SET name = ? WHERE userId = ?", (players_real.get(id), id))
+            log(f"ID: {id}: {name} → {players_real.get(id)}", join('files', 'logs', 'namechanges.txt'))
+
+
 
 async def getPlayersWhoPlayedRecently(db: aiosqlite.Connection, hours=1):
     date_now = datetime.now(tz = timezone('UTC'))

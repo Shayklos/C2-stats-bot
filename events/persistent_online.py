@@ -35,7 +35,7 @@ class Game_Info(commands.Cog):
             )
             return
         
-        players = await getPlayersOnline(self.liveinfo)
+        players = await getPlayersOnline(self.liveinfo, self.bot.db)
         view = ui.LayoutView()
 
         view.add_item(ui.Container(
