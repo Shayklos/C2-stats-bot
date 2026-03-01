@@ -25,6 +25,7 @@ timeformat                    = data.get("timeformat") if data.get("timeformat")
 BASE_USER_URL                 = os.getenv("BASE_USER_URL")
 BASE_ROUNDS_URL               = os.getenv("BASE_ROUNDS_URL")
 LIVEINFO_URL                  = os.getenv("LIVEINFO_URL")
+ACHIEVEMENTS_URL              = os.getenv("ACHIEVEMENTS_URL")
 deleteUserData                = data.get("deleteUserData") if data.get("deleteUserData")                               else True
 commandCooldown               = data.get("commandCooldown") if data.get("commandCooldown")                             else 120
 roundsUserdataDirectory       = data.get("roundsUserdataDirectory").replace('/', os.sep) if data.get("roundsUserdataDirectory") else os.path.join("files", "userdata", "rounds") + os.sep

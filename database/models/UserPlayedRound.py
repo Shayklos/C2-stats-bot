@@ -1,5 +1,6 @@
-from models import Base
-from models import User
+from datetime import datetime
+from models.Base import Base
+from models.User import User
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
@@ -12,7 +13,7 @@ Table that keeps track of global stats
 class UserPlayedRound(Base):
     __tablename__ = "UserPlayedRounds"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True) 
-    user_id: Mapped[int] = mapped_column(ForeignKey("Users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("Users.id"), name='userId')
     ruleset: Mapped[int] = mapped_column(ForeignKey("Rulesets.id"))
     played_rounds: Mapped[int] = mapped_column(Integer, name = "playedRounds") 
     place: Mapped[int]
@@ -23,3 +24,5 @@ class UserPlayedRound(Base):
     blocks: Mapped[int]
     played_time: Mapped[float] = mapped_column(name='playedTime')
     played_time_teams: Mapped[float] = mapped_column(name='playedTimeTeams')
+    created_at: Mapped[datetime] = mapped_column(name = 'createdAt')
+    updated_at: Mapped[datetime] = mapped_column(name = 'updatedAt')

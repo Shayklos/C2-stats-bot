@@ -19,6 +19,7 @@ Discord bot that displays Cultris II stats.
    BASE_USER_URL=<user info endpoint>
    BASE_ROUNDS_URL=<matches info endpoint>
    LIVEINFO_URL=<liveinfo endpoint>
+   ACHIEVEMENTS_URL=<achievements endpoint>
 
    #Only required for connection with Def's VPS for profile pictures
    VPS_USERNAME=<vps username>
