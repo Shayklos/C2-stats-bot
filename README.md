@@ -5,6 +5,96 @@ Discord bot that displays Cultris II stats.
 
 ### Deployment
 1. Make sure to have access to the Cultris II API endpoints. You can ask either me or the developer of the game via email `de@iru.ch`.
+
+### Logging database
+The project now uses a **separate SQLite file** for logging (default `files/log.db`).  This keeps diagnostics apart from the main Cultris data (`cultris2.db`).
+
+To initialise the logging database:
+
+1. Run `python -m database.setup_logging_db` (preferred) or
+   `python database/setup_logging_db.py` – both modes are supported. Either
+   command will create any missing tables in the log file and the `log_view`.
+
+By default the main database is still `cultris2.db`; pass an alternate path to
+`Database.connect(stats_path, log_path)` when creating the connection if you
+need to change either location.
+2. Optionally seed functions/concepts by editing the script or using the helper methods from `database.Database`.
+
+The logging schema consists of three tables:
+
+* `functions` – unique names of functions that perform logging.
+* `concepts` – templates containing replacement symbols (`~&`, `~=`, `~¿` for text and
+  `~¡`, `~*`, `~%` for numbers).
+* `logs` – each row references a function and a concept, records a UTC timestamp, and
+  stores up to three text and three numeric parameters.
+
+A SQL view named `log_view` produces messages by substituting the symbols with
+provided parameters – the resulting string is available as the `message` column.
+
+#### Using from code
+
+The `database.Database` class exposes:
+
+```python
+await db.log_event(
+    function_name: str,
+    concept: str | Concept,  # Can be a ConceptDef constant or string template
+    category: CategoryEnum | None = None,
+    text_params: list[str] | None = None,
+    num_params: list[float] | None = None,
+)
+```
+
+**Using predefined Concept constants (recommended):**
+```python
+from database.database_models import Concept, CategoryEnum
+
+await db.log_event(
+    "my_function",
+    Concept.UpdateUser,  # Type-safe concept constant
+    text_params=["username"],
+    num_params=[user_id]
+)
+```
+
+**With category override:**
+```python
+await db.log_event(
+    "my_function",
+    Concept.UpdateUser,
+    category=CategoryEnum.DISCORD,
+    text_params=["username"]
+)
+```
+
+**Backward compatible string templates:**
+```python
+await db.log_event(
+    "my_function",
+    "User ~& logged in",  # Still works
+    text_params=["username"]
+)
+```
+
+Helpers `ensure_function`/`ensure_concept` insert entries if missing. A convenience
+wrapper `db_log` in `methods.py` will automatically capture the caller name and accepts
+up to three text and numeric params:
+
+```python
+from methods import db_log
+
+await db_log(db, "User ~& logged in", username)
+```
+
+Existing code such as `logInteraction` has been updated to call `db_log` if the
+bot object exposes a `db` attribute.
+
+These additions keep logging clean and maintainable while retaining the
+original file-based logging behavior.
+
+### TODO (or ideas) list
+
+- database backups
 2. Create your own Discord bot. Currently the bot required permissions are:
    - Use Application Commands
    - Send messages

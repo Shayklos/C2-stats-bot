@@ -5,13 +5,13 @@ from sqlalchemy import String, Integer, Float
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
-from models.Base import Base
+from .Base import Base
 from datetime import datetime
 
 class User(Base):
     __tablename__ = "Users"
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255, collation='NOCASE'))
+    name: Mapped[str] = mapped_column(String(255, collation='NOCASE'), nullable=True)
     rank: Mapped[Optional[int]]
     score: Mapped[Optional[int]]
     max_combo: Mapped[int] = mapped_column(Integer, default = 0, name = "maxCombo")
@@ -21,7 +21,7 @@ class User(Base):
     peak_score: Mapped[Optional[int]] = mapped_column(name = 'peakScore')
     last_played: Mapped[Optional[datetime]] = mapped_column(name = 'lastPlayed')
     last_login: Mapped[Optional[datetime]] = mapped_column(name = 'lastLogin')
-    creation_date: Mapped[datetime] = mapped_column(name = 'creationDate')
+    creation_date: Mapped[datetime] = mapped_column(name = 'creationDate', default=datetime(1999, 1, 1))
     peak_rank_date: Mapped[Optional[datetime]] = mapped_column(name = 'peakRankDate')
     peak_score_date: Mapped[Optional[datetime]] = mapped_column(name = 'peakScoreDate')
 

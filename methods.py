@@ -7,6 +7,26 @@ from settings import *
 from databaseexport import updateDatabase
 from os.path import isfile, join
 from pathlib import Path
+import inspect
+
+
+async def db_log(db, concept_template, *text_params, num_params=None):
+    """Log an event to the database, automatically using the caller name.
+
+    The *db* parameter should be a :class:`database.Database` instance. The
+    caller name is inserted as the function name. Pass up to three text
+    parameters and three numeric parameters.
+    """
+    if num_params is None:
+        num_params = []
+
+    caller = inspect.stack()[1].function
+    await db.log_event(
+        caller,
+        concept_template,
+        text_params=list(text_params),
+        num_params=list(num_params)
+    )
 
 def getPage(page, data, pageSize = embedPageSize, isTime = False):
     
@@ -39,7 +59,12 @@ def getPage(page, data, pageSize = embedPageSize, isTime = False):
     return description
 
 
-async def logInteraction(interaction:discord.Interaction):
+async def logInteraction(interaction:discord.Interaction, db=None):
+    """Write the interaction to the file log and optionally the logging database.
+
+    If *db* is an instance of :class:`database.Database` the call will also
+    insert a row in the logging tables using the "User ~& used /~&" concept.
+    """
     log_output = f"{interaction.user.display_name} ({interaction.user.name}) used /{interaction.data['name']}"
     if interaction.data.get('options'):
         for option in interaction.data['options']:
@@ -52,9 +77,15 @@ async def logInteraction(interaction:discord.Interaction):
                         log_output += f" [{suboption['name']} = {suboption['value']}]"
     log(log_output, join('files', 'logs', 'discord.txt'))
 
+    if db is not None:
+        # use the convenience helper defined below
+        await db_log(db, "User ~& used /~&", interaction.user.display_name, interaction.data['name'])
+
 
 
 async def checks(interaction: discord.Interaction):
+    # ensure we can pass the db around through interaction handlers
+
     await logInteraction(interaction)
     with open(join('files', 'check_times.json'), "r") as file:
         data = json.load(file)

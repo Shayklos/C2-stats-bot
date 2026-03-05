@@ -40,7 +40,8 @@ class UpdateAvatar(commands.Cog):
         usernameInput="Ingame username of the player you're looking for. Leave empty to use your Discord display name."
     )
     async def update_avatar(self, interaction: Interaction, usernameInput: str = None):
-        await logInteraction(interaction)
+        # pass bot database connection if available so the action is logged
+        await logInteraction(interaction, getattr(self.bot, 'db', None))
 
         if not usernameInput:
             usernameInput = interaction.user.display_name

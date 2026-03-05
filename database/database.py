@@ -1,41 +1,288 @@
 import asyncio
+from time import sleep
 from sqlalchemy import text
 from sqlalchemy import func
 from sqlalchemy import select
 import sqlalchemy.ext.asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
 import traceback
 from os.path import join
 import sys
 import logging
 
-from Endpoint import Endpoint
-from models.UserPlayedRound import UserPlayedRound
-from models.UserCombo import UserCombo
-from models.User import User
-from models.Achievement import Achievement
-from datetime import datetime, timezone
-from models.Match import Match
-from models.Round import Round
-from models.Team import Team
-from models.Ruleset import Ruleset
+# When this module is executed directly (`python database/database.py`)
+# there is no enclosing package, which makes relative imports fail.  We can
+# create a dummy `database` package entry in sys.modules so that the
+# subsequent `from .foo import ...` statements work in both contexts.
+if __package__ is None and __name__ == "__main__":
+    import os, sys, types
+    pkg = types.ModuleType("database")
+    pkg.__path__ = [os.path.dirname(os.path.abspath(__file__))]
+    sys.modules["database"] = pkg
+    __package__ = "database"
 
-class Base(DeclarativeBase):
-    pass
+# Now use straightforward relative imports everywhere.
+from .Endpoint import Endpoint
+
+# main application models
+from .stats_models.UserPlayedRound import UserPlayedRound
+from .stats_models.UserCombo import UserCombo
+from .stats_models.User import User
+from .stats_models.Achievement import Achievement
+from datetime import datetime, timezone
+from .stats_models.Match import Match
+from .stats_models.Round import Round
+from .stats_models.Team import Team
+from .stats_models.Ruleset import Ruleset
+from .stats_models.Netscore import Netscore
+
+# shared declarative base imported from stats_models Base; this is used
+# for the main (stats) database only.  Logging tables are kept in a separate
+# metadata object (see LogBase below) so that they can reside in a different
+# sqlite file.
+from .stats_models.Base import Base
+
+# logging tables base
+from .log_models.Base import LogBase
+
+# logging/database models
+from .log_models.Function import Function
+from .log_models.Concept import Concept as ConceptTable
+from .log_models.ConceptDef import Concept, ConceptDef
+from .log_models.Category import Category
+from .log_models.CategoryEnum import CategoryEnum
+from .log_models.LogEntry import LogEntry
+
+# SQL used to create the view that formats the concept template with
+# the parameters from the log row.  This view is created automatically
+# when the database connects.
+_LOG_VIEW_SQL = """
+CREATE VIEW IF NOT EXISTS log_view AS
+SELECT
+    l.id AS id,
+    l.timestamp AS timestamp,
+    f.name AS function_name,
+    cat.text AS category,
+    -- perform a series of REPLACE calls to substitute the six symbols
+    -- with their corresponding parameter values (nulls become empty).
+    REPLACE(
+        REPLACE(
+            REPLACE(
+                REPLACE(
+                    REPLACE(
+                        REPLACE(
+                            c.template,
+                            '~&', COALESCE(l.param1_text, '')
+                        ),
+                        '~=', COALESCE(l.param2_text, '')
+                    ),
+                    '~¿', COALESCE(l.param3_text, '')
+                ),
+                '~¡', COALESCE(CAST(l.param1_num AS TEXT), '')
+            ),
+            '~*', COALESCE(CAST(l.param2_num AS TEXT), '')
+        ),
+        '~%', COALESCE(CAST(l.param3_num AS TEXT), '')
+    ) AS message
+FROM logs AS l
+JOIN functions AS f ON l.function_id = f.id
+JOIN concepts AS c ON l.concept_id = c.id
+LEFT JOIN categories AS cat ON c.category_id = cat.id;
+"""
+
 
 class Database:
-    def __init__(self, engine: sqlalchemy.ext.asyncio.AsyncEngine):
-        self.engine = engine
+    def __init__(self, stats_engine: sqlalchemy.ext.asyncio.AsyncEngine, log_engine: sqlalchemy.ext.asyncio.AsyncEngine):
+        # primary engine for application data
+        self.engine = stats_engine
+        # separate engine for logging; may point to same file if desired
+        self.log_engine = log_engine
 
     @classmethod
-    async def connect(cls, db_filepath):
-        engine = sqlalchemy.ext.asyncio.create_async_engine("sqlite+aiosqlite:///" + db_filepath, echo = True)
-    
-        async with engine.begin() as conn:
-           await conn.run_sync(Base.metadata.create_all)
+    async def connect(cls, stats_db_filepath: str, log_db_filepath: str | None = None):
+        """Create a Database instance.
+
+        *stats_db_filepath* is the path to the main database (e.g. cultris2.db).  If
+        *log_db_filepath* is omitted it defaults to the same path, preserving
+        backwards compatibility.  To keep logging in a distinct file, provide a
+        separate path such as "files/log.db".
+        """
+        stats_engine = sqlalchemy.ext.asyncio.create_async_engine(
+            "sqlite+aiosqlite:///" + stats_db_filepath, echo=True
+        )
+        if log_db_filepath is None:
+            log_db_filepath = stats_db_filepath
+        log_engine = sqlalchemy.ext.asyncio.create_async_engine(
+            "sqlite+aiosqlite:///" + log_db_filepath, echo=True
+        )
+
+        # create tables on stats engine
+        async with stats_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        # create tables & view on logging engine
+        async with log_engine.begin() as conn:
+            await conn.run_sync(LogBase.metadata.create_all)
+            await conn.execute(text(_LOG_VIEW_SQL))
+
+        db = Database(stats_engine, log_engine)
+        await db.populate_categories()
+        return db
+
+
+    # helper methods for the logging database
+    async def _get_or_create(self, session, model, **kwargs):
+        """Return an instance matching kwargs or insert a new one.
+
+        The session should already be within an async context manager.
+        ``model`` is an ORM class mapped to the appropriate Base.
+        """
+        stmt = select(model).filter_by(**kwargs)
+        result = await session.scalar(stmt)
+        if result:
+            return result
+        instance = model(**kwargs)
+        session.add(instance)
+        # flush to populate primary key in case the caller needs it
+        await session.flush()
+        return instance
+
+    async def ensure_function(self, session, name: str):
+        return await self._get_or_create(session, Function, name=name)
+
+    async def ensure_concept(self, session, template: str):
+        return await self._get_or_create(session, ConceptTable, template=template)
+
+    async def log_event(
+        self,
+        function_name: str,
+        concept: str | ConceptDef,
+        category: CategoryEnum | None = None,
+        text_params: list[str] | None = None,
+        num_params: list[float] | None = None,
+    ):
+        """Insert a log entry, creating referenced function/concept if needed.
+
+        **function_name** is the name of the calling function.
+        **concept** can be either:
+          - A `ConceptDef` constant (e.g., `Concept.UpdateUser`)
+          - A string template for backward compatibility
+        **category** is a `CategoryEnum` value. If not provided, uses the concept's default.
+        **text_params** may contain up to three strings; **num_params** up to
+        three numbers. Parameters are matched positionally to the symbols
+        documented in the schema (~&, ~=, ~¿ for text; ~¡, ~*, ~% for numbers).
+        Timestamp (UTC) is recorded automatically.
+        """
+        text_params = text_params or []
+        num_params = num_params or []
+
+        # Extract template and category from concept
+        if isinstance(concept, ConceptDef):
+            template = concept.template
+            concept_category = category or concept.category
+        else:
+            template = concept
+            concept_category = category
+
+        async_session = async_sessionmaker(self.log_engine, expire_on_commit=False)
+        async with async_session() as session:
+            func = await self.ensure_function(session, function_name)
+            
+            # Get or create the concept
+            stmt = select(ConceptTable).filter_by(template=template)
+            conc = await session.scalar(stmt)
+            if conc:
+                # Update existing concept if category_id is not set
+                if concept_category and conc.category_id is None:
+                    cat = await self.ensure_category(session, concept_category.value)
+                    conc.category_id = cat.id
+            else:
+                conc = ConceptTable(template=template)
+                if concept_category:
+                    cat = await self.ensure_category(session, concept_category.value)
+                    conc.category_id = cat.id
+                session.add(conc)
+            
+            await session.flush()
+
+            entry = LogEntry(
+                function_id=func.id,
+                concept_id=conc.id,
+                timestamp=datetime.now(timezone.utc),
+                param1_text=text_params[0] if len(text_params) > 0 else None,
+                param2_text=text_params[1] if len(text_params) > 1 else None,
+                param3_text=text_params[2] if len(text_params) > 2 else None,
+                param1_num=num_params[0] if len(num_params) > 0 else None,
+                param2_num=num_params[1] if len(num_params) > 1 else None,
+                param3_num=num_params[2] if len(num_params) > 2 else None,
+            )
+            session.add(entry)
+            await session.commit()
+            return entry
+
+    async def ensure_functions(self, names: list[str]):
+        """Ensure that a list of function names exist in the _logging_ database.
+
+        Operates on ``self.log_engine``.
+
+        Returns a list of Function objects in the same order as *names*.
+        """
+        async_session = async_sessionmaker(self.log_engine, expire_on_commit=False)
+        results = []
+        async with async_session() as session:
+            for name in names:
+                obj = await self.ensure_function(session, name)
+                results.append(obj)
+            await session.commit()
+        return results
+
+    async def ensure_concepts(self, templates: list[str | ConceptDef]):
+        """Ensure that a list of concept templates/definitions exist in the _logging_ database.
+
+        Operates on ``self.log_engine``.
         
-        return Database(engine)
+        Can accept either:
+        - String templates for backward compatibility
+        - ConceptDef objects with template and category
+        """
+        async_session = async_sessionmaker(self.log_engine, expire_on_commit=False)
+        results = []
+        async with async_session() as session:
+            for item in templates:
+                if isinstance(item, ConceptDef):
+                    template = item.template
+                    category = item.category
+                else:
+                    template = item
+                    category = None
+                
+                stmt = select(ConceptTable).filter_by(template=template)
+                conc = await session.scalar(stmt)
+                if not conc:
+                    conc = ConceptTable(template=template)
+                    if category:
+                        cat = await self.ensure_category(session, category.value)
+                        conc.category_id = cat.id
+                    session.add(conc)
+                elif category and conc.category_id is None:
+                    cat = await self.ensure_category(session, category.value)
+                    conc.category_id = cat.id
+                
+                results.append(conc)
+            await session.commit()
+        return results
+
+    async def ensure_category(self, session, category_text: str):
+        return await self._get_or_create(session, Category, text=category_text)
+
+    async def populate_categories(self):
+        """Populate the categories table with predefined categories."""
+        category_names = [cat.value for cat in CategoryEnum]
+        
+        async_session = async_sessionmaker(self.log_engine, expire_on_commit=False)
+        async with async_session() as session:
+            for cat_name in category_names:
+                await self.ensure_category(session, cat_name)
+            await session.commit()
 
     async def add_constants(self):
         async_session = async_sessionmaker(self.engine, expire_on_commit=False)
@@ -153,7 +400,15 @@ class Database:
             now_utc = datetime.now(timezone.utc)
 
             if existing:
-                existing.name = data.get('name')
+                # Track name changes
+                old_name = existing.name
+                new_name = data.get('name')
+                existing.name = new_name
+                
+                # Track rank changes for netscore
+                rank_before = existing.rank
+                score_before = existing.score
+                
                 if rank is not None:
                     existing.rank = rank
                     if existing.peak_rank is None or rank > existing.peak_rank:
@@ -165,12 +420,42 @@ class Database:
                     if existing.peak_score is None or score > existing.peak_score:
                         existing.peak_score = score
                         existing.peak_score_date = now_utc
+                
+                # Record netscore if rank or score changed
+                if (rank_before != rank) or (score_before != score):
+                    netscore = Netscore(
+                        timestamp=now_utc,
+                        user_id=user_id,
+                        rank_before=rank_before,
+                        rank_after=rank,
+                        score_before=score_before,
+                        score_after=score
+                    )
+                    session.add(netscore)
 
-                existing.max_combo = max_combo
-                existing.max_bpm = max_bpm
-                existing.avg_bpm = avg_bpm
-                if creation_date:
-                    existing.creation_date = creation_date
+                # Log name change if name changed
+                if old_name != new_name:
+                    try:
+                        await self.log_event(
+                            "update_user",
+                            Concept.NameChange,
+                            text_params=[old_name, new_name],
+                        )
+                    except Exception:
+                        # logging should not interrupt main flow
+                        pass
+
+                # log the update or creation of a user
+                try:
+                    await self.log_event(
+                        "update_user",
+                        Concept.UpdateUser,
+                        text_params=[data.get('name')],
+                        num_params=[user_id],
+                    )
+                except Exception:
+                    # logging should not interrupt main flow
+                    pass
 
                 if last_played:
                     # prefer the newest last_played
@@ -206,7 +491,66 @@ class Database:
 
                 session.add(user)
                 await session.commit()
+                # record creation
+                try:
+                    await self.log_event(
+                        "update_user",
+                        Concept.CreateUser,
+                        text_params=[data.get('name')],
+                        num_params=[user_id],
+                    )
+                except Exception:
+                    pass
                 return user
+
+    async def update_userlist(self, start_id: int, end_id: int | None = None):
+        """Iterate calls to :meth:`update_user` over a range of user IDs.
+
+        *start_id* defines the first user ID to request.  If *end_id* is
+        provided iteration stops when the current ID exceeds it.  When
+        *end_id* is ``None`` the method will continue fetching sequential
+        IDs until it believes there are no more users – this is detected by
+        encountering three consecutive missing users (``update_user`` returns
+        ``None``).
+
+        Holes are expected so a few misses are tolerated before termination.
+
+        When an ID fails to fetch from the API, a placeholder row is inserted
+        into the Users table with just the ID and no name, ensuring every
+        checked ID has a corresponding row.
+
+        Returns the number of successful updates performed.
+        """
+        current = start_id
+        misses = 0
+        updated = 0
+
+        while True:
+            if end_id is not None and current > end_id:
+                break
+
+            user = await self.update_user(current)
+            if user is None:
+                # no user at this ID from API; insert a placeholder row
+                async_session = async_sessionmaker(self.engine, expire_on_commit=False)
+                async with async_session() as session:
+                    existing = await session.get(User, current)
+                    if not existing:
+                        placeholder = User(id=current)
+                        session.add(placeholder)
+                        await session.commit()
+                misses += 1
+            else:
+                misses = 0
+                updated += 1
+
+            if end_id is None and misses >= 3:
+                # assume we've walked past the last existing user
+                break
+
+            current += 1
+
+        return updated
 
 
     async def add_rounds(self, start_id: int, update_players: bool = False):
@@ -283,6 +627,16 @@ class Database:
 
                     # add round
                     session.add(round_obj)
+
+                    # log the addition of a round
+                    try:
+                        await self.log_event(
+                            "add_round",
+                            Concept.AddRound,
+                            num_params=[match_id, user_val or -1],
+                        )
+                    except Exception:
+                        pass
 
                     # optionally update player/user record
                     if update_players and user_val is not None:
@@ -412,21 +766,40 @@ class Database:
 
             await session.commit()
 
-        return True   
+        # log range processed (nil means unrestricted)
+        try:
+            if min_round_id is not None or max_round_id is not None:
+                await self.log_event(
+                    "process_rounds",
+                    Concept.ProcessRounds,
+                    num_params=[min_round_id or 0, max_round_id or 0],
+                )
+            else:
+                await self.log_event(
+                    "process_rounds",
+                    Concept.ProcessAllRounds,
+                )
+        except Exception:
+            pass
 
 if __name__ == '__main__':
     async def main():
         try:
-            db = await Database.connect('files/cultris2.db')
+            # pass both stats and log database paths; log file may share or be
+            # distinct from the stats database.
+            db = await Database.connect('files/cultris2.db', 'files/log.db')
             # result = await db.add_rounds(13416046)
             # await db.add_constants()
-            await db.process_rounds(13416046, 13417046)
+            # await db.process_rounds(13416046, 13417046)
+            # await db.update_userlist(21, 46740)
+            await db.update_userlist(10015, 14999)
+            
             # print(result)
             # dispose engine connections so that asyncio loop can close cleanly
         except:
-            # print("ERROR")
             print(traceback.format_exc())
         finally:
             await db.engine.dispose()
+            await db.log_engine.dispose()
 
     asyncio.run(main())
