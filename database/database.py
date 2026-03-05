@@ -1,5 +1,5 @@
 import asyncio
-from time import sleep
+from time import perf_counter, sleep
 from sqlalchemy import text
 from sqlalchemy import func
 from sqlalchemy import select
@@ -503,6 +503,33 @@ class Database:
                     pass
                 return user
 
+    async def update_rankings(self):
+        """Recalculate all user ranks based solely on their current score.
+
+        Users are sorted by ``score`` in descending order (highest first).
+        The user with the greatest score receives rank ``1``, the next
+        highest score receives rank ``2``, etc.  Accounts whose ``score`` is
+        ``None`` will have ``rank`` cleared to ``None`` as well.
+
+        This method uses the ORM rather than custom SQL so it works with the
+        same session management used elsewhere in :class:`Database`.
+        """
+        async_session = async_sessionmaker(self.engine, expire_on_commit=False)
+        async with async_session() as session:
+            # order users by score descending, placing NULLs last
+            stmt = select(User).order_by(User.score.desc().nulls_last())
+            users = await session.scalars(stmt)
+
+            current_rank = 1
+            for user in users:
+                if user.score is None:
+                    user.rank = None
+                else:
+                    user.rank = current_rank
+                    current_rank += 1
+                session.add(user)
+            await session.commit()
+
     async def update_userlist(self, start_id: int, end_id: int | None = None):
         """Iterate calls to :meth:`update_user` over a range of user IDs.
 
@@ -791,8 +818,10 @@ if __name__ == '__main__':
             # result = await db.add_rounds(13416046)
             # await db.add_constants()
             # await db.process_rounds(13416046, 13417046)
-            # await db.update_userlist(21, 46740)
-            await db.update_userlist(10015, 14999)
+            # await db.update_userlist(20001, 25000)
+            start = perf_counter()
+            await db.update_rankings()
+            print(perf_counter() - start)
             
             # print(result)
             # dispose engine connections so that asyncio loop can close cleanly
