@@ -30,6 +30,10 @@ deleteUserData                = data.get("deleteUserData") if data.get("deleteUs
 commandCooldown               = data.get("commandCooldown") if data.get("commandCooldown")                             else 120
 roundsUserdataDirectory       = data.get("roundsUserdataDirectory").replace('/', os.sep) if data.get("roundsUserdataDirectory") else os.path.join("files", "userdata", "rounds") + os.sep
 online_message_frequency      = data.get("online_message_frequency") if data.get("online_message_frequency")           else 30
+randomChecksCurrent           = data.get("randomChecksCurrent") if data.get("randomChecksCurrent")                     else 1
+checkRankingsEnabled          = data.get("checkRankingsEnabled") if data.get("checkRankingsEnabled") is not None       else True
+checkRankingsIntervalDays     = data.get("checkRankingsIntervalDays") if data.get("checkRankingsIntervalDays")         else 7
+checkRankingsThreshold        = data.get("checkRankingsThreshold") if data.get("checkRankingsThreshold")               else 150
 
 if powerTableData := data.get("powerTable"):
     powerTableRange = data.get("powerTableRange")
@@ -48,3 +52,11 @@ botzilla_name           = data.get("botzilla_name")           if data.get("botzi
 botzilla_check_for_name = data.get("botzilla_check_for_name") if data.get("botzilla_check_for_name") else True
 botzilla_check_for_java = data.get("botzilla_check_for_java") if data.get("botzilla_check_for_java") else False
 linux_terminal          = data.get("linux_terminal")          if data.get("linux_terminal")          else "tmux"
+
+def save_random_checks_current(user_id: int):
+    """Update the randomChecksCurrent value in settings.json."""
+    with open(os.path.join('files', 'settings.json'), "r") as file:
+        data = json.load(file)
+    data["randomChecksCurrent"] = user_id
+    with open(os.path.join('files', 'settings.json'), "w") as file:
+        json.dump(data, file, indent=4)

@@ -1,16 +1,11 @@
 {
     "locked": false,
     "admins": [
-        "yoozenji",
         "shayklos",
-        "forbiddenazalea",
-        "azaleadevs",
-        "emtotheily",
         "kb1900",
-        "thousandfire"
+        "sneezykins"
     ],
-    "admin_commands": [
-    ],
+    "admin_commands": [],
     "approved_users": {
         "percent4989": 12659
     },
@@ -53,5 +48,9 @@
     "botzilla_name": "botzilla",
     "botzilla_check_for_name": true,
     "botzilla_check_for_java": false,
-    "linux_terminal": "tmux"
+    "linux_terminal": "tmux",
+    "randomChecksCurrent": 1,
+    "checkRankingsEnabled": true,
+    "checkRankingsIntervalDays": 7,
+    "checkRankingsThreshold": 150
 }
