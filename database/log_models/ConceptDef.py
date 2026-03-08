@@ -35,11 +35,11 @@ class Concept:
     
     # Round operations
     AddRound = ConceptDef(
-        template="Added round ~¡ for user ~¡",
+        template="Added rounds ~¡ to ~*",
         category=CategoryEnum.GENERAL
     )
     ProcessRounds = ConceptDef(
-        template="Processed rounds ~¡ to ~¡",
+        template="Processed rounds ~¡ to ~*",
         category=CategoryEnum.GENERAL
     )
     ProcessAllRounds = ConceptDef(
