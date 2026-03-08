@@ -12,7 +12,7 @@ class Round(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     round_id: Mapped[int] = mapped_column(ForeignKey('Matches.id'), name='roundId')
     user_id: Mapped[int] = mapped_column(ForeignKey('Users.id'), name='userId', nullable = True)
-    guest_name: Mapped[str] = mapped_column(name='guestName')
+    guest_name: Mapped[str] = mapped_column(name='guestName', nullable=True)
     place: Mapped[int]
     lines_got: Mapped[int] = mapped_column(name='linesGot')
     lines_sent: Mapped[int] = mapped_column(name='linesSent')
@@ -21,5 +21,5 @@ class Round(Base):
     blocks: Mapped[int]
     play_duration: Mapped[float] = mapped_column(name = 'playDuration')
     team: Mapped[int] = mapped_column(ForeignKey('Teams.id'), nullable = True)
-    cheese_rows: Mapped[int] = mapped_column(name='cheeseRows')
+    cheese_rows: Mapped[int] = mapped_column(name='cheeseRows', nullable=True)
     

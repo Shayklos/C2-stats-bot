@@ -11,3 +11,4 @@ class Match(Base):
     ruleset: Mapped[str] = mapped_column(String(32))
     is_official: Mapped[bool] = mapped_column(name='isOfficial')
     speedlimit: Mapped[int]
+    roomsize: Mapped[int]
